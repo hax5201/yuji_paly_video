@@ -1,0 +1,2086 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>✨ 萝莉 Video ✨</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='10' fill='%2339d7e4'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --primary-color: #39d7e4;
+            --primary-accent: #7a6cff;
+            --secondary-accent: #ff79c6;
+            --kawaii-pink: #ffb3de;
+            --kawaii-purple: #c084fc;
+            --miku-glow: rgba(57, 215, 228, 0.55);
+            --text-white: #ffffff;
+            --text-gray: #d1d5db;
+            --pc-video-width: min(680px, calc(100vw - 60px));
+            --pc-video-height: 100vh;
+            --glass-blur: 22px;
+            --dynamic-blur: 42px;
+            --glass-bg: rgba(255, 255, 255, 0.07);
+            --glass-border: rgba(255, 255, 255, 0.16);
+            --glass-highlight: rgba(255, 255, 255, 0.22);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background:
+                radial-gradient(circle at 15% 20%, rgba(57, 215, 228, 0.2), transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(255, 121, 198, 0.25), transparent 42%),
+                radial-gradient(circle at 50% 10%, rgba(192, 132, 252, 0.18), transparent 35%),
+                #05060d;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--text-white);
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .app-container {
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+            background: linear-gradient(180deg, rgba(5,8,24,0.95), rgba(3,5,12,0.98));
+            max-width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            perspective: 1400px;
+            perspective-origin: 50% 40%;
+        }
+
+        /* 动态模糊背景层 */
+        .video-blur-layer {
+            position: absolute;
+            inset: -8%;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+            opacity: 0.92;
+            filter: blur(var(--dynamic-blur)) saturate(1.35) brightness(0.72);
+            transform: scale(1.12) translateZ(0);
+            animation: blurBreath 5s ease-in-out infinite;
+            will-change: filter, opacity;
+        }
+        .video-blur-layer video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        @keyframes blurBreath {
+            0%, 100% {
+                filter: blur(38px) saturate(1.25) brightness(0.68);
+                opacity: 0.88;
+            }
+            50% {
+                filter: blur(48px) saturate(1.45) brightness(0.76);
+                opacity: 0.94;
+            }
+        }
+        .video-card.playing .video-blur-layer {
+            animation-duration: 3.2s;
+        }
+
+        /* 3D 毛玻璃通用 */
+        .glass-3d {
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--glass-blur)) saturate(1.75);
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.75);
+            border: 1px solid var(--glass-border);
+            box-shadow:
+                0 12px 40px rgba(0, 0, 0, 0.35),
+                inset 0 1px 0 var(--glass-highlight),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+            transform-style: preserve-3d;
+            transition: transform 0.45s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.45s ease;
+        }
+        .glass-3d:hover {
+            transform: translateZ(12px) rotateX(1.5deg);
+            box-shadow:
+                0 18px 48px rgba(57, 215, 228, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.28);
+        }
+        .settings-modal .glass-3d:hover,
+        .top-nav.glass-3d:hover {
+            transform: none;
+            box-shadow:
+                0 12px 40px rgba(0, 0, 0, 0.35),
+                inset 0 1px 0 var(--glass-highlight),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        .video-card > video.main-video {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 响应式适配：PC端抖音网页版风格 */
+        @media (min-width: 768px) {
+            body {
+                background: #000;
+            }
+
+            .app-container {
+                background: #000;
+                padding: 0;
+                max-width: 100%;
+                height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .video-feed {
+                width: var(--pc-video-width);
+                height: 100vh;
+                margin: 0 auto;
+                border-radius: 0;
+                box-shadow: none;
+                overflow: hidden;
+                scroll-snap-type: y mandatory;
+                scroll-behavior: smooth;
+                overscroll-behavior-y: contain;
+            }
+
+            .video-card {
+                width: var(--pc-video-width);
+                height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background: #000;
+                scroll-snap-align: start;
+                scroll-snap-stop: always;
+                position: relative;
+                will-change: transform;
+                transform: translateZ(0);
+            }
+
+            video.main-video {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                background: #000;
+            }
+            .video-blur-layer video {
+                object-fit: cover;
+            }
+
+            .top-nav {
+                width: auto;
+                left: 50%;
+                transform: translateX(-50%) translateZ(40px);
+                top: 16px;
+                padding: 12px 36px;
+                border-radius: 999px;
+                justify-content: center;
+            }
+
+            .top-nav span { 
+                margin: 0 22px; 
+                font-size: 17px;
+            }
+
+            .nav-icon {
+                padding: 10px 15px;
+            }
+
+            .nav-left {
+                left: 20px;
+            }
+
+            .nav-right {
+                right: 20px;
+            }
+
+            .sidebar {
+                right: 18px;
+                bottom: 150px;
+            }
+
+            .action-item {
+                margin-bottom: 24px;
+            }
+
+            .action-item i {
+                font-size: 36px;
+            }
+
+            .action-count {
+                font-size: 14px;
+                margin-top: 6px;
+            }
+
+            .avatar-img {
+                width: 56px;
+                height: 56px;
+            }
+
+            .follow-btn {
+                width: 22px;
+                height: 22px;
+                font-size: 15px;
+                bottom: -12px;
+            }
+
+            .disc-area {
+                width: 56px;
+                height: 56px;
+            }
+
+            .disc-area img {
+                width: 32px;
+                height: 32px;
+            }
+
+            .bottom-tabs {
+                display: none;
+            }
+
+            .video-card .progress-container {
+                bottom: 0;
+                height: 4px;
+            }
+
+            .video-info {
+                width: 72%;
+                left: 20px;
+                bottom: 60px;
+            }
+
+            .author {
+                font-size: 17px;
+                margin-bottom: 8px;
+                font-weight: 600;
+            }
+
+            .desc {
+                font-size: 14px;
+                max-height: 50px;
+                margin-bottom: 10px;
+                line-height: 1.6;
+            }
+
+            .music {
+                font-size: 14px;
+            }
+
+            .settings-modal .modal-content {
+                width: 480px;
+                max-width: 90%;
+                padding: 28px;
+            }
+
+            .play-icon {
+                width: 102px;
+                height: 102px;
+                font-size: 50px;
+            }
+
+            .unmute-hint {
+                top: 85px;
+            }
+
+            .error-overlay .retry-btn {
+                padding: 12px 28px;
+                font-size: 15px;
+            }
+        }
+
+        /* 移动端样式保持原有逻辑 */
+        @media (max-width: 767px) {
+            .video-feed {
+                height: 100%;
+                width: 100%;
+                overflow-y: scroll;
+                scroll-snap-type: y mandatory;
+                overscroll-behavior-y: none;
+                scroll-behavior: smooth;
+                -webkit-overflow-scrolling: touch;
+            }
+            .video-feed::-webkit-scrollbar { display: none; }
+            .video-card {
+                height: 100vh;
+                width: 100vw;
+                scroll-snap-align: start;
+                scroll-snap-stop: always; 
+                position: relative;
+                background: #000;
+                overflow: hidden;
+                will-change: transform;
+                transform: translateZ(0);
+            }
+            video.main-video {
+                object-fit: cover;
+            }
+            .video-blur-layer video {
+                object-fit: cover;
+            }
+            .bottom-tabs {
+                display: flex;
+            }
+        }
+        
+        .top-nav {
+            position: absolute;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 15px;
+            font-weight: 600;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            pointer-events: none;
+            left: 50%;
+            transform: translateX(-50%) translateZ(30px);
+            top: 12px;
+            padding: 10px 28px;
+            border-radius: 999px;
+        }
+        .top-nav.glass-3d {
+            pointer-events: none;
+        }
+        .top-nav > * { pointer-events: auto; }
+        .top-nav span { margin: 0 18px; color: rgba(255,255,255,0.6); cursor: pointer; padding-bottom: 4px; transition: all 0.3s; }
+        .top-nav span.active {
+            color: #eaffff;
+            opacity: 1;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 2px;
+            text-shadow: 0 0 10px var(--miku-glow);
+        }
+        .top-nav span:hover { color: #d7fbff; }
+        
+        .nav-icon { position: absolute; font-size: 20px; padding: 10px; cursor: pointer; }
+        .nav-left { left: 10px; }
+        .nav-right { right: 10px; }
+
+        /* 设置按钮：固定毛玻璃 + 仅 GPU 动画（避免 blur 数值抖动） */
+        .settings-btn {
+            position: relative;
+            flex-shrink: 0;
+            width: 46px;
+            height: 46px;
+            margin-left: 14px;
+            padding: 0;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            isolation: isolate;
+            contain: layout style;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(1.6);
+            -webkit-backdrop-filter: blur(20px) saturate(1.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow:
+                0 6px 20px rgba(0, 0, 0, 0.28),
+                inset 0 1px 0 rgba(255, 255, 255, 0.22);
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+            transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.4s ease, box-shadow 0.5s ease;
+            z-index: 2;
+        }
+        .settings-btn-glow {
+            position: absolute;
+            inset: -20%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(57, 215, 228, 0.35) 0%, rgba(255, 121, 198, 0.2) 45%, transparent 70%);
+            opacity: 0.65;
+            transform: translate3d(0, 0, 0) scale(1);
+            animation: settingsGlowBreath 5s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .settings-btn i {
+            position: relative;
+            z-index: 1;
+            font-size: 21px;
+            color: #ecffff;
+            text-shadow: 0 0 10px var(--miku-glow);
+            transform: translate3d(0, 0, 0);
+            transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .settings-btn:hover {
+            transform: translate3d(0, -2px, 0) scale(1.06);
+            border-color: rgba(57, 215, 228, 0.4);
+            box-shadow:
+                0 10px 28px rgba(57, 215, 228, 0.22),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+        .settings-btn:hover i {
+            transform: translate3d(0, 0, 0) rotate(90deg);
+        }
+        .settings-btn:active {
+            transform: translate3d(0, 0, 0) scale(0.96);
+            transition-duration: 0.15s;
+        }
+        .settings-btn.is-open {
+            transform: translate3d(0, 0, 0) scale(1);
+            border-color: rgba(255, 121, 198, 0.45);
+        }
+        .settings-btn.is-open i {
+            transform: translate3d(0, 0, 0) rotate(180deg);
+        }
+        @keyframes settingsGlowBreath {
+            0%, 100% { opacity: 0.5; transform: translate3d(0, 0, 0) scale(0.95); }
+            50% { opacity: 0.85; transform: translate3d(0, 0, 0) scale(1.08); }
+        }
+        body.settings-open .settings-btn-glow {
+            animation-play-state: paused;
+            opacity: 0.4;
+        }
+        body.settings-open .video-blur-layer {
+            animation-play-state: paused;
+        }
+
+        /* 设置弹窗：平滑进出场，弹窗内按钮不叠 3D */
+        .settings-modal .btn-action,
+        .settings-modal .btn-close {
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(14px) saturate(1.5);
+            -webkit-backdrop-filter: blur(14px) saturate(1.5);
+            transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease, background 0.35s ease;
+        }
+        .settings-modal .btn-action:hover,
+        .settings-modal .btn-close:hover {
+            transform: translate3d(0, -2px, 0) scale(1.02);
+        }
+        .settings-modal .btn-action:active,
+        .settings-modal .btn-close:active {
+            transform: translate3d(0, 0, 0) scale(0.98);
+            transition-duration: 0.12s;
+        }
+        .settings-modal .btn-confirm {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 6px 20px rgba(57, 215, 228, 0.25), inset 0 1px 0 rgba(255,255,255,0.18);
+        }
+        .settings-modal .btn-confirm:hover {
+            box-shadow: 0 8px 26px rgba(57, 215, 228, 0.35), inset 0 1px 0 rgba(255,255,255,0.22);
+        }
+        .settings-modal .btn-upload {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+        }
+        .settings-modal .btn-close {
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .settings-modal .source-select {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            transition: border-color 0.35s ease, box-shadow 0.35s ease;
+        }
+        .settings-modal .source-select:focus {
+            box-shadow: 0 0 0 2px rgba(57, 215, 228, 0.25);
+        }
+        
+        .video-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.5) 40%, transparent 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        /* 左右渐变模糊效果 */
+        .video-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+            background: linear-gradient(to right, rgba(0,0,0,0.15) 0%, transparent 12%, transparent 88%, rgba(0,0,0,0.15) 100%);
+        }
+        
+        /* 双击点赞动画 */
+        .double-tap-heart {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 120px;
+            color: var(--secondary-accent);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 20;
+            animation: doubleTapHeart 0.8s ease-out;
+            text-shadow: 0 0 20px rgba(255, 121, 198, 0.8), 0 0 40px rgba(255, 121, 198, 0.6);
+        }
+        
+        @keyframes doubleTapHeart {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            30% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
+        
+        /* 个人主页样式 */
+        .profile-page {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 100;
+            overflow-y: auto;
+        }
+        
+        .profile-page.show {
+            display: block;
+        }
+        
+        .profile-header {
+            padding: 40px 20px 20px;
+            text-align: center;
+            border-bottom: 1px solid #222;
+        }
+        
+        .profile-avatar {
+            width: 90px;
+            height: 90px;
+            margin: 0 auto 12px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid #333;
+        }
+        
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .profile-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 16px;
+        }
+        
+        .profile-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: #777;
+            margin-top: 3px;
+        }
+        
+        .profile-nav {
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+            border-bottom: 1px solid #222;
+        }
+        
+        .profile-tab {
+            color: #777;
+            font-size: 14px;
+            padding: 8px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .profile-tab.active {
+            color: #fff;
+            border-bottom-color: #fe2c55;
+        }
+        
+        .profile-content {
+            padding: 15px;
+        }
+        
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 3px;
+        }
+        
+        .video-grid-item {
+            aspect-ratio: 9/16;
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+            background: #111;
+        }
+        
+        .video-grid-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .video-grid-item .likes-count {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            color: #fff;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+        }
+        
+        .video-grid-item .delete-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 26px;
+            height: 26px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        
+        .video-grid-item .delete-btn:hover {
+            background: rgba(254,44,85,0.8);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+        }
+        .video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .video-overlay > * { pointer-events: auto; }
+        
+        /* 侧边栏 */
+        .sidebar {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 12px;
+            border-radius: 28px;
+            transform: translateZ(24px) rotateY(-4deg);
+        }
+        .action-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        .action-item:hover {
+            transform: translateY(-4px) scale(1.05);
+            filter: drop-shadow(0 0 12px var(--miku-glow));
+        }
+        .action-item i {
+            font-size: 30px;
+            color: white;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s ease, filter 0.3s ease;
+        }
+        .action-item:active i { transform: scale(0.85); }
+        .action-item i.liked { 
+            color: var(--secondary-accent); 
+            filter: drop-shadow(0 0 14px rgba(255, 121, 198, 0.9));
+            animation: like-pulse 0.4s ease-out;
+        }
+        @keyframes like-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.35); }
+            100% { transform: scale(1); }
+        }
+        .action-item:hover i { transform: scale(1.2) rotate(-5deg); filter: drop-shadow(0 0 10px var(--miku-glow)); }
+        .action-count {
+            font-size: 12px;
+            margin-top: 2px;
+            font-weight: 500;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+            letter-spacing: 0.3px;
+        }
+        .avatar-box { position: relative; }
+        .avatar-img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.95);
+            object-fit: cover;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+        .avatar-img:hover {
+            transform: scale(1.08);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            border-color: #fff;
+        }
+        .follow-btn {
+            position: absolute;
+            bottom: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-accent));
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(57, 215, 228, 0.42);
+            transition: transform 0.25s ease, background 0.3s ease;
+        }
+        .follow-btn:hover {
+            transform: translateX(-50%) scale(1.15);
+            background: var(--primary-color);
+        }
+        
+        /* 唱片动画 */
+        .disc-area {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+            border-radius: 50%;
+            border: 8px solid #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: spin 5s linear infinite;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.4), inset 0 0 10px rgba(255,255,255,0.05);
+        }
+        .disc-area.paused { animation-play-state: paused; }
+        .disc-area img { 
+            width: 28px; 
+            height: 28px; 
+            border-radius: 50%; 
+            object-fit: cover;
+        }
+        @keyframes spin { 
+            100% { transform: rotate(360deg); } 
+        }
+        
+        /* 视频信息 */
+        .video-info {
+            position: absolute;
+            left: 15px;
+            z-index: 2;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+            padding: 14px 18px;
+            border-radius: 16px;
+            max-width: 78%;
+            transform: translateZ(18px) rotateX(1deg);
+        }
+        .author { 
+            font-size: 16px; 
+            font-weight: 700; 
+            margin-bottom: 6px; 
+            letter-spacing: 0.5px;
+        }
+        .desc { 
+            font-size: 13px; 
+            line-height: 1.4; 
+            margin-bottom: 8px; 
+            max-height: 42px; 
+            overflow: hidden; 
+            opacity: 0.92; 
+            letter-spacing: 0.3px;
+        }
+        .music { 
+            display: flex; 
+            align-items: center; 
+            font-size: 13px; 
+            opacity: 0.88; 
+        }
+        .music i { 
+            margin-right: 5px; 
+            animation: music-note 2s ease-in-out infinite;
+        }
+        @keyframes music-note {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+        .marquee { white-space: nowrap; overflow: hidden; width: 150px; }
+        
+        /* 播放状态图标 */
+        .play-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 88px;
+            height: 88px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.45);
+            background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.32), rgba(57, 215, 228, 0.28) 42%, rgba(122,108,255,0.2) 100%);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 44px;
+            color: #ecffff;
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+            filter: drop-shadow(0 8px 20px rgba(57, 215, 228, 0.35));
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.12), 0 0 24px rgba(57, 215, 228, 0.4);
+            z-index: 15;
+        }
+        .play-icon i {
+            transform: translateX(2px);
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        .video-card.paused .play-icon { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        .video-card.playing .play-icon { opacity: 0; transform: translate(-50%, -50%) scale(0.86); }
+        
+        /* 双击点赞 */
+        .double-click-heart {
+            position: absolute;
+            color: var(--primary-color);
+            font-size: 80px;
+            transform: translate(-50%, -50%) rotate(-15deg);
+            animation: heart-pop 0.8s ease-out forwards;
+            pointer-events: none;
+            z-index: 100;
+            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3));
+        }
+        @keyframes heart-pop {
+            0% { transform: translate(-50%, -50%) scale(0) rotate(-30deg); opacity: 1; }
+            20% { transform: translate(-50%, -50%) scale(1.2) rotate(-15deg); }
+            40% { transform: translate(-50%, -50%) scale(1) rotate(-15deg); }
+            100% { transform: translate(-50%, -150%) scale(1.2) rotate(0deg); opacity: 0; }
+        }
+        
+        /* 底部Tab */
+        .bottom-tabs {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            width: auto;
+            height: 55px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 10;
+            padding: 0 10px;
+            padding-bottom: 8px;
+            border-radius: 20px;
+            transform: translateZ(28px);
+        }
+        .tab-item { font-size: 13px; color: rgba(223,245,255,0.65); font-weight: 500; cursor: pointer; transition: all 0.3s; padding: 5px 10px; }
+        .tab-item.active { color: #ecffff; text-shadow: 0 0 8px var(--miku-glow); }
+        .tab-item:hover { color: rgba(255,255,255,0.9); }
+        .tab-add-btn {
+            width: 42px;
+            height: 26px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-accent));
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        .tab-add-btn::before, .tab-add-btn::after {
+            content: ''; position: absolute; width: 3px; height: 100%; top: 0; border-radius: 3px;
+        }
+        .tab-add-btn::before { left: -4px; background: var(--primary-color); }
+        .tab-add-btn::after { right: -4px; background: var(--secondary-accent); }
+        .tab-add-btn i { color: #fff; font-size: 18px; font-weight: bold; position: relative; z-index: 2; }
+        
+        /* 进度条 */
+        .progress-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: rgba(255,255,255,0.15);
+            z-index: 4;
+            overflow: hidden;
+        }
+        .progress-bar { 
+            height: 100%; 
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-accent)); 
+            width: 0%; 
+            transition: width 0.1s linear; 
+            border-radius: 2px;
+        }
+        
+        /* 模态框样式 */
+        .settings-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background: rgba(5, 8, 20, 0.72);
+            backdrop-filter: blur(18px) saturate(1.35);
+            -webkit-backdrop-filter: blur(18px) saturate(1.35);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.45s;
+        }
+        .settings-modal.show {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        .modal-content {
+            padding: 28px;
+            border-radius: 24px;
+            text-align: center;
+            max-width: 90%;
+            width: 400px;
+            transform: translate3d(0, 16px, 0) scale(0.94);
+            opacity: 0;
+            transition:
+                transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+            will-change: transform, opacity;
+        }
+        .settings-modal.show .modal-content {
+            transform: translate3d(0, 0, 0) scale(1);
+            opacity: 1;
+        }
+        .modal-title { font-size: 19px; font-weight: bold; margin-bottom: 22px; color: #fff; text-shadow: 0 0 10px var(--miku-glow); }
+        .source-select-container { margin-bottom: 20px; }
+        .source-select {
+            width: 100%; padding: 14px; background: #2a2a2a;
+            border: 1px solid #444; border-radius: 10px;
+            color: var(--text-white); font-size: 14px; outline: none;
+            appearance: none;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .source-select:focus { border-color: var(--primary-color); }
+        .source-select option { background: #2a2a2a; color: var(--text-white); padding: 10px; }
+        .btn-action {
+            width: 100%; padding: 13px; border: none; border-radius: 10px;
+            font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+        .btn-confirm { background: linear-gradient(135deg, var(--primary-color), var(--secondary-accent)); color: white; }
+        .btn-confirm:hover { box-shadow: 0 6px 24px rgba(255, 121, 198, 0.5); }
+        .btn-upload { background: #333; color: white; }
+        .btn-upload:hover { background: #3d3d3d; }
+        .btn-close {
+            background: transparent; color: rgba(255,255,255,0.6); padding: 10px 30px;
+            border-radius: 20px; font-size: 14px; cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s;
+        }
+        .btn-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        
+        /* Toast & Loading */
+        .toast {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) translateZ(80px);
+            color: white; padding: 14px 28px;
+            border-radius: 16px; z-index: 2000; display: none;
+            font-size: 14px;
+            backdrop-filter: blur(20px) saturate(1.6);
+            -webkit-backdrop-filter: blur(20px) saturate(1.6);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 12px 40px rgba(57, 215, 228, 0.25);
+        }
+        .loading-spinner {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 62px; height: 62px; border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-top-color: var(--primary-color);
+            border-right-color: var(--secondary-accent);
+            animation: spin 1.05s linear infinite;
+            z-index: 18;
+            box-shadow: 0 0 20px rgba(57, 215, 228, 0.35);
+            display: none;
+        }
+        .loading-spinner::before {
+            content: '♪';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: #cfffff;
+            text-shadow: 0 0 10px var(--miku-glow);
+        }
+        .loading .loading-spinner { display: block; }
+        
+        /* 错误重试界面 */
+        .error-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 2;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            display: none;
+        }
+        .error-overlay.show { display: flex; }
+        .retry-btn {
+            margin-top: 15px; padding: 10px 24px; border: 1.5px solid rgba(255,255,255,0.4);
+            border-radius: 25px; font-size: 14px; background: transparent; color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+        }
+        .retry-btn:hover {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-accent));
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 14px rgba(57, 215, 228, 0.4);
+        }
+        
+        /* 静音提示 */
+        .unmute-hint {
+            position: absolute; top: 70px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); padding: 6px 16px; border-radius: 20px;
+            font-size: 12px; display: none; pointer-events: none; z-index: 20;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .unmute-hint.show { display: flex; align-items: center; gap: 5px; }
+
+        /* PC端滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #222;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <div class="top-nav glass-3d">
+        <span class="active">🌸 萝莉 ✨</span>
+        <button type="button" class="settings-btn" id="settingsBtn" onclick="openSettings()" aria-label="打开设置" aria-expanded="false">
+            <span class="settings-btn-glow" aria-hidden="true"></span>
+            <i class="bi bi-gear-fill"></i>
+        </button>
+    </div>
+    
+    <div class="video-feed" id="videoFeed"></div>
+    
+    <div class="profile-page" id="profilePage">
+        <div class="profile-header">
+            <div class="profile-avatar">
+                <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop" alt="我的头像">
+            </div>
+            <div class="profile-name">Miku酱✨</div>
+            <div class="profile-stats">
+                <div class="stat-item">
+                    <div class="stat-number">0</div>
+                    <div class="stat-label">关注</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">0</div>
+                    <div class="stat-label">粉丝</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="likedCount">0</div>
+                    <div class="stat-label">喜欢💕</div>
+                </div>
+            </div>
+        </div>
+        <div class="profile-nav">
+            <span class="profile-tab active" onclick="showLikedTab()">作品</span>
+            <span class="profile-tab">私密</span>
+            <span class="profile-tab">喜欢</span>
+        </div>
+        <div class="profile-content">
+            <div id="likedVideosGrid" class="video-grid"></div>
+            <div id="noLikedContent" class="empty-state">
+                <i class="bi bi-heart" style="font-size: 60px; color: #a3a3a3; margin-bottom: 15px;"></i>
+                <div style="color: #9ca3af;">还没有喜欢的作品呀✨</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bottom-tabs glass-3d">
+        <div class="tab-item active" onclick="showHomeTab()">🏠 萝莉</div>
+        <div class="tab-item">👥 朋友</div>
+        <div class="tab-add-btn"><i class="bi bi-plus-lg"></i></div>
+        <div class="tab-item">💬 消息</div>
+        <div class="tab-item" onclick="showProfileTab()">👤 我</div>
+    </div>
+</div>
+
+<div class="settings-modal" id="settingsModal">
+    <div class="modal-content glass-3d">
+        <div class="modal-title">🌸 萝莉源切换</div>
+        <div class="source-select-container">
+            <select class="source-select" id="videoSourceSelect">
+                <option value="">-- 请选择视频源 --</option>
+            </select>
+        </div>
+        <button type="button" class="btn-action btn-confirm glass-3d" onclick="confirmSwitchSource()">✨ 确定切换</button>
+        <button type="button" class="btn-action btn-upload glass-3d" onclick="document.getElementById('jsonFileInput').click()">📁 导入本地JSON</button>
+        <input type="file" id="jsonFileInput" accept=".json" style="display: none;">
+        <button type="button" class="btn-close glass-3d" onclick="closeSettings()">关闭</button>
+    </div>
+</div>
+
+<div class="toast" id="toast">操作成功</div>
+
+<script>
+    // ---------------- 全局变量 ----------------
+    let observer;
+    let currentApiUrl = "";
+    let currentCategoryName = "";
+    let isStaticSource = false;
+    let isLoading = false;
+    let hasUserInteracted = false;
+    
+    const STORAGE_KEY_LIKES = 'douyin_pro_liked_videos';
+    const PRELOAD_OFFSET = 3;
+    const STORAGE_KEY_INDEX = 'douyin_pro_source_idx';
+    const STORAGE_KEY_NAME = 'douyin_pro_source_name';
+    const STORAGE_KEY_URL_LEGACY = 'douyin_pro_source_url';
+
+    /*
+     * ========== API 加密说明（纯前端） ==========
+     * 1. 源码里只保存密文 u，不直接写 http://... 地址
+     * 2. 页面加载时用 decodeApi() 在内存里还原，视频照常请求
+     * 3. 换地址：打开同目录 api-encoder.html → 输入新 URL → 复制密文替换下方 u
+     * 4. 可改密钥片段 _apiKeyParts（改后需用新工具重新生成全部密文）
+     * 注意：前端加密只能防「随便看一眼」，无法防懂技术的人；
+     *       若要真正隐藏，请用 proxy-server.py 做本地代理（见该文件顶部说明）
+     */
+    const _apiKeyParts = ['Miku', 'Luoli', '@', '2026'];
+    const HEAD_API_ENC = 'JR0fBT9PQEMfchxISlc9AEUWIloOHABvWlVTUg==';
+
+    const BUILTIN_SOURCES_ENC = [
+        { n: '萝莉', u: 'JR0fBXZaQA0ZKRxJR1wjRwgbYxQfBUYsR19eX2MZAwVzARYcDH1EWVZTIg==' },
+        { n: '极品萝莉', u: 'JR0fBXZaQBQDKgMeBQd7UVNNYg0WFkYmV15eUyRGER9jHwYcAC5eXB1cJBkCGyAZQRwBMA1CU1gpBgZI' },
+        { n: '萝莉2', u: 'JR0fBT9PQEMIMFseUVMjDh4cKwAGQgouHVFCX2IEG0FjFB8FRzBaQA1CNBkOSCAAAAAAZlRfQFssHVYYPEE=' }
+    ];
+
+    let builtInVideoSources = [];
+
+    function getApiKey() {
+        return _apiKeyParts.join('');
+    }
+
+    function encodeApi(plainUrl, key) {
+        const k = key || getApiKey();
+        const xored = [...plainUrl].map((ch, i) =>
+            String.fromCharCode(ch.charCodeAt(0) ^ k.charCodeAt(i % k.length))
+        ).join('');
+        return btoa(unescape(encodeURIComponent(xored)));
+    }
+
+    function decodeApi(cipher, key) {
+        const k = key || getApiKey();
+        try {
+            const xored = decodeURIComponent(escape(atob(cipher)));
+            return [...xored].map((ch, i) =>
+                String.fromCharCode(ch.charCodeAt(0) ^ k.charCodeAt(i % k.length))
+            ).join('');
+        } catch (e) {
+            console.error('API 解密失败，请检查密文或密钥', e);
+            return '';
+        }
+    }
+
+    function initVideoSources() {
+        builtInVideoSources = BUILTIN_SOURCES_ENC.map(item => ({
+            '分类名称': item.n,
+            '视频源API地址': decodeApi(item.u)
+        })).filter(s => s['视频源API地址']);
+    }
+
+    function getSourceIndexByUrl(url) {
+        return builtInVideoSources.findIndex(s => s['视频源API地址'] === url);
+    }
+
+    function getMainVideo(card) {
+        return card.querySelector('video.main-video') || card.querySelector('video');
+    }
+
+    function getBlurVideo(card) {
+        return card.querySelector('.video-blur-layer video');
+    }
+
+    function syncBlurVideo(card) {
+        const main = getMainVideo(card);
+        const blur = getBlurVideo(card);
+        if (!main || !blur) return;
+        if (blur.src !== main.currentSrc && main.currentSrc) blur.src = main.currentSrc;
+        else if (!blur.src && main.src) blur.src = main.src;
+        if (Math.abs(blur.currentTime - main.currentTime) > 0.3) {
+            blur.currentTime = main.currentTime;
+        }
+        if (!main.paused && blur.paused) blur.play().catch(() => {});
+        if (main.paused && !blur.paused) blur.pause();
+    }
+
+    let fallbackAvatarIndex = 0;
+    let scrollSwitchLocked = false;
+    let wheelDeltaBuffer = 0;
+    const fallbackAvatars = [
+        'https://i.pravatar.cc/100?img=1',
+        'https://i.pravatar.cc/100?img=2',
+        'https://i.pravatar.cc/100?img=3',
+        'https://i.pravatar.cc/100?img=4',
+        'https://i.pravatar.cc/100?img=5'
+    ];
+
+    async function getVerifiedAvatarUrl() {
+        const apiUrl = decodeApi(HEAD_API_ENC);
+        
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                cache: 'no-cache'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data && data.code === 200 && data.data) {
+                    return data.data;
+                }
+            }
+        } catch (e) {
+            console.warn('头像API访问失败，使用备用头像:', e);
+        }
+        
+        const fallback = fallbackAvatars[fallbackAvatarIndex % fallbackAvatars.length];
+        fallbackAvatarIndex++;
+        return fallback;
+    }
+
+    // ---------------- 初始化 ----------------
+    document.addEventListener('DOMContentLoaded', () => {
+        initVideoSources();
+        fillSourceSelect();
+
+        const savedName = localStorage.getItem(STORAGE_KEY_NAME);
+        let savedIndex = parseInt(localStorage.getItem(STORAGE_KEY_INDEX), 10);
+
+        // 兼容旧版：曾把明文 URL 存在 localStorage，尝试映射为索引后删除明文
+        const legacyUrl = localStorage.getItem(STORAGE_KEY_URL_LEGACY);
+        if ((Number.isNaN(savedIndex) || savedIndex < 0) && legacyUrl) {
+            const legacyIdx = getSourceIndexByUrl(legacyUrl);
+            if (legacyIdx >= 0) savedIndex = legacyIdx;
+            localStorage.removeItem(STORAGE_KEY_URL_LEGACY);
+        }
+
+        // 全局交互监听，用于解锁音频
+        document.body.addEventListener('click', () => {
+            hasUserInteracted = true;
+        }, { once: true });
+
+        document.getElementById('jsonFileInput').addEventListener('change', handleFileImport);
+
+        if (!Number.isNaN(savedIndex) && savedIndex >= 0 && savedIndex < builtInVideoSources.length) {
+            applyVideoSource(savedIndex, savedName, true);
+        } else {
+            applyVideoSource(0, null, false);
+        }
+
+        initDynamicBlurLoop();
+
+        const videoFeed = document.getElementById('videoFeed');
+
+        function scrollToCardStep(step) {
+            if (!videoFeed || scrollSwitchLocked) return;
+            const cardHeight = videoFeed.querySelector('.video-card')?.offsetHeight || window.innerHeight;
+            const cards = videoFeed.querySelectorAll('.video-card');
+            if (!cards.length || !cardHeight) return;
+
+            const currentIndex = Math.round(videoFeed.scrollTop / cardHeight);
+            const targetIndex = Math.max(0, Math.min(cards.length - 1, currentIndex + step));
+            if (targetIndex === currentIndex) return;
+
+            scrollSwitchLocked = true;
+            videoFeed.scrollTo({
+                top: targetIndex * cardHeight,
+                behavior: 'smooth'
+            });
+
+            setTimeout(() => {
+                scrollSwitchLocked = false;
+            }, 360);
+        }
+
+        // PC端滚轮切换视频（缓冲+节流，避免连续抖动）
+        document.querySelector('.video-feed').addEventListener('wheel', (e) => {
+            e.preventDefault();
+            wheelDeltaBuffer += e.deltaY;
+
+            if (Math.abs(wheelDeltaBuffer) < 35) return;
+            const step = wheelDeltaBuffer > 0 ? 1 : -1;
+            wheelDeltaBuffer = 0;
+            scrollToCardStep(step);
+        }, { passive: false });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                const cards = document.querySelectorAll('.video-card');
+                let currentCard = null;
+                cards.forEach(card => {
+                    const rect = card.getBoundingClientRect();
+                    if (rect.top >= -rect.height / 2 && rect.top <= rect.height / 2) {
+                        currentCard = card;
+                    }
+                });
+                if (currentCard) {
+                    const video = getMainVideo(currentCard);
+                    togglePlay(video, currentCard);
+                }
+            }
+
+            if (e.code === 'ArrowDown' || e.code === 'ArrowUp') {
+                e.preventDefault();
+                scrollToCardStep(e.code === 'ArrowDown' ? 1 : -1);
+            }
+        });
+    });
+
+    function applyVideoSource(index, nameOverride, showLoadingToast) {
+        const source = builtInVideoSources[index];
+        if (!source) return;
+        currentApiUrl = source['视频源API地址'];
+        currentCategoryName = nameOverride || source['分类名称'];
+        isStaticSource = false;
+        const select = document.getElementById('videoSourceSelect');
+        if (select) select.value = String(index);
+        localStorage.setItem(STORAGE_KEY_INDEX, String(index));
+        localStorage.setItem(STORAGE_KEY_NAME, currentCategoryName);
+        if (showLoadingToast) showToast(`正在加载 ${currentCategoryName}`);
+        initFeed(3);
+    }
+
+    function fillSourceSelect() {
+        const select = document.getElementById('videoSourceSelect');
+        select.innerHTML = '<option value="">-- 请选择视频源 --</option>';
+        builtInVideoSources.forEach((source, index) => {
+            const option = document.createElement('option');
+            option.value = String(index);
+            option.textContent = source['分类名称'];
+            select.appendChild(option);
+        });
+    }
+
+    // ---------------- 视频流逻辑 ----------------
+
+    function confirmSwitchSource() {
+        const select = document.getElementById('videoSourceSelect');
+        const selectedIndex = parseInt(select.value, 10);
+        const selectedName = select.options[select.selectedIndex].text;
+
+        if (Number.isNaN(selectedIndex) || selectedIndex < 0) return showToast('请先选择一个分类');
+
+        applyVideoSource(selectedIndex, selectedName, false);
+        closeSettings();
+        showToast(`已切换至: ${selectedName}`);
+    }
+
+    function initFeed(count) {
+        const feed = document.getElementById('videoFeed');
+        feed.innerHTML = '';
+        isLoading = false;
+        // 销毁旧观察者
+        if (observer) observer.disconnect();
+        
+        appendVideosToFeed(count);
+    }
+
+    async function appendVideosToFeed(count) {
+        if (!currentApiUrl || isStaticSource || isLoading) return;
+        isLoading = true;
+
+        const feed = document.getElementById('videoFeed');
+        
+        for(let i = 0; i < count; i++) {
+            const freshUrl = getFreshUrl(currentApiUrl, i);
+            const avatarUrl = await getVerifiedAvatarUrl();
+            const html = generateVideoHTML({
+                url: freshUrl,
+                title: `#${currentCategoryName} #萝莉精选`,
+                author: `@${currentCategoryName}酱`,
+                avatar: avatarUrl
+            });
+            feed.insertAdjacentHTML('beforeend', html);
+        }
+        
+        // 重新初始化观察者和事件
+        setTimeout(() => {
+            initVideoObserver();
+            initAllVideoEvents();
+            isLoading = false;
+        }, 100);
+    }
+
+    function getFreshUrl(url, index = 0) {
+        if(url.startsWith('blob:') || url.startsWith('file:')) return url;
+        const timestamp = Date.now() + index + Math.random(); 
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}t=${timestamp}`;
+    }
+
+    function generateVideoHTML(info) {
+        const likes = (Math.random() * 100).toFixed(1) + 'w';
+        const comments = Math.floor(Math.random() * 5000) + 100;
+        const videoId = 'video_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const isLiked = isVideoLiked(videoId);
+        
+        return `
+        <div class="video-card paused" data-video-id="${videoId}" data-video-url="${info.url}" data-author="${info.author}" data-desc="${info.title}" data-avatar="${info.avatar}">
+            <div class="video-blur-layer" aria-hidden="true">
+                <video class="blur-video" src="${info.url}" loop playsinline muted preload="metadata"></video>
+            </div>
+            <div class="loading-spinner"></div>
+            <div class="error-overlay">
+                <i class="bi bi-exclamation-circle" style="font-size: 40px; color: #999;"></i>
+                <div style="margin-top: 10px; color: #ccc;">加载失败</div>
+                <button class="retry-btn" onclick="retryLoad(this)">重新加载</button>
+            </div>
+            <div class="unmute-hint"><i class="bi bi-volume-mute-fill"></i> 点击取消静音</div>
+            <video 
+                class="main-video"
+                src="${info.url}" 
+                loop 
+                playsinline 
+                webkit-playsinline 
+                preload="metadata" 
+                x5-video-player-type="h5-page"
+            ></video>
+            
+            <div class="video-overlay">
+                <div class="play-icon glass-3d"><i class="bi bi-play-fill"></i></div>
+                <div class="sidebar glass-3d">
+                    <div class="avatar-box">
+                        <img src="${info.avatar}" class="avatar-img">
+                        <div class="follow-btn"><i class="bi bi-plus"></i></div>
+                    </div>
+                    <div class="action-item" onclick="toggleLike(this)">
+                        <i class="bi ${isLiked ? 'bi-heart-fill liked' : 'bi-heart'}"></i><span class="action-count">${likes}</span>
+                    </div>
+                    <div class="action-item" onclick="openCommentPopup(this)">
+                        <i class="bi bi-chat-dots-fill"></i><span class="action-count">${comments}</span>
+                    </div>
+                    <div class="action-item"><i class="bi bi-share-fill"></i><span class="action-count">分享</span></div>
+                    <div class="disc-area paused"><img src="${info.avatar}"></div>
+                </div>
+                <div class="video-info glass-3d">
+                    <div class="author">${info.author}</div>
+                    <div class="desc">${info.title}</div>
+                    <div class="music"><i class="bi bi-music-note-beamed"></i><div class="marquee">热门BGM - ${info.author}的原声</div></div>
+                </div>
+                <div class="progress-container"><div class="progress-bar"></div></div>
+            </div>
+        </div>`;
+    }
+
+    // ---------------- 核心观察者逻辑 ----------------
+    
+    function initVideoObserver() {
+        if (observer) observer.disconnect();
+        
+        const options = {
+            root: document.querySelector('.video-feed'),
+            threshold: 0.6 // 降低阈值，确保更容易触发播放
+        };
+        
+        observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const card = entry.target;
+                const video = getMainVideo(card);
+                
+                if (entry.isIntersecting) {
+                    // 进入视野
+                    handleCardActive(card, video);
+                    // 检查无限加载
+                    handleScrollLoading(card);
+                } else {
+                    // 离开视野
+                    handleCardInactive(card, video);
+                }
+            });
+        }, options);
+        
+        document.querySelectorAll('.video-card').forEach(card => observer.observe(card));
+    }
+
+    async function handleCardActive(card, video) {
+        // 1. 恢复 src (如果被清理了)
+        if (!video.getAttribute('src') && card.dataset.src) {
+            video.src = card.dataset.src;
+            const blur = getBlurVideo(card);
+            if (blur) blur.src = card.dataset.src;
+            video.load();
+            if (blur) blur.load();
+        }
+
+        // 2. 尝试播放
+        try {
+            card.classList.add('loading');
+            
+            // 如果已经有用户交互，尝试有声播放
+            if (hasUserInteracted) {
+                video.muted = false;
+            } else {
+                // 否则静音播放以符合浏览器策略
+                video.muted = true; 
+            }
+            
+            const playPromise = video.play();
+            
+            if (playPromise !== undefined) {
+                playPromise
+                .then(() => {
+                    card.classList.remove('loading');
+                    card.classList.remove('paused');
+                    card.classList.add('playing');
+                    const disc = card.querySelector('.disc-area');
+                    if(disc) disc.classList.remove('paused');
+                    
+                    // 如果静音播放，显示提示
+                    if (video.muted) {
+                        card.querySelector('.unmute-hint').classList.add('show');
+                    } else {
+                        card.querySelector('.unmute-hint').classList.remove('show');
+                    }
+                })
+                .catch(err => {
+                    console.warn("Autoplay blocked, trying muted...", err);
+                    // 如果有声播放失败，回退到静音播放
+                    video.muted = true;
+                    video.play().then(() => {
+                        card.classList.remove('loading');
+                        card.classList.remove('paused');
+                        card.classList.add('playing');
+                        card.querySelector('.unmute-hint').classList.add('show');
+                        const disc = card.querySelector('.disc-area');
+                        if(disc) disc.classList.remove('paused');
+                    }).catch(e => {
+                        console.error("Playback completely failed", e);
+                        card.classList.remove('loading');
+                        card.classList.add('paused');
+                    });
+                });
+            }
+            syncBlurVideo(card);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function handleCardInactive(card, video) {
+        video.pause();
+        video.currentTime = 0;
+        card.classList.add('paused');
+        const disc = card.querySelector('.disc-area');
+        if(disc) disc.classList.add('paused');
+        card.querySelector('.unmute-hint').classList.remove('show');
+        const blur = getBlurVideo(card);
+        if (blur) { blur.pause(); blur.currentTime = 0; }
+    }
+
+    function initDynamicBlurLoop() {
+        setInterval(() => {
+            document.querySelectorAll('.video-card.playing').forEach(card => syncBlurVideo(card));
+        }, 200);
+    }
+
+    // 处理无限加载和简单的内存管理
+    function handleScrollLoading(currentCard) {
+        const allCards = Array.from(document.querySelectorAll('.video-card'));
+        const currentIndex = allCards.indexOf(currentCard);
+
+        // 加载更多
+        if (!isStaticSource && currentApiUrl && currentIndex >= allCards.length - PRELOAD_OFFSET) {
+            appendVideosToFeed(2);
+        }
+        
+        // 内存优化：保留当前及前后各2个，其他移除src
+        allCards.forEach((card, index) => {
+            const vid = getMainVideo(card);
+            const blurVid = getBlurVideo(card);
+            const release = () => {
+                if (vid?.getAttribute('src')) { vid.removeAttribute('src'); vid.load(); }
+                if (blurVid?.getAttribute('src')) { blurVid.removeAttribute('src'); blurVid.load(); }
+            };
+            const restore = () => {
+                if (card.dataset.src) {
+                    if (vid && !vid.getAttribute('src')) vid.src = card.dataset.src;
+                    if (blurVid && !blurVid.getAttribute('src')) blurVid.src = card.dataset.src;
+                }
+            };
+            if (Math.abs(index - currentIndex) > 3) release();
+            else restore();
+        });
+    }
+
+    // ---------------- 事件处理 ----------------
+
+    function initAllVideoEvents() {
+        document.querySelectorAll('.video-card').forEach(card => {
+            if(card.dataset.eventsBound) return;
+            
+            const video = getMainVideo(card);
+            const blurVideo = getBlurVideo(card);
+            
+            // 记录原始 URL
+            if(video.getAttribute('src') && !card.dataset.src) {
+                card.dataset.src = video.getAttribute('src');
+            }
+
+            // 加载开始
+            video.addEventListener('loadstart', () => {
+                card.classList.add('loading');
+                card.querySelector('.error-overlay').classList.remove('show');
+            });
+            
+            // 可以播放
+            video.addEventListener('canplay', () => {
+                card.classList.remove('loading');
+            });
+            
+            // 播放进度 + 同步模糊层
+            video.addEventListener('timeupdate', (e) => {
+                updateProgress(e);
+                syncBlurVideo(card);
+            });
+            if (blurVideo) {
+                blurVideo.addEventListener('loadeddata', () => syncBlurVideo(card));
+            }
+            
+            // 等待数据
+            video.addEventListener('waiting', () => {
+                card.classList.add('loading');
+            });
+            
+            // 正在播放
+            video.addEventListener('playing', () => {
+                card.classList.remove('loading');
+                card.querySelector('.error-overlay').classList.remove('show');
+            });
+
+            // 错误处理
+            video.addEventListener('error', (e) => {
+                handleVideoError(card, video);
+            });
+            
+            // 点击事件
+            let lastClickTime = 0;
+            card.addEventListener('click', (e) => {
+                if(e.target.closest('.sidebar') || e.target.closest('.bottom-tabs') || e.target.closest('.top-nav') || e.target.closest('.error-overlay')) return;
+                
+                // 记录用户交互，之后可以有声播放
+                hasUserInteracted = true;
+                
+                const currentTime = new Date().getTime();
+                if (currentTime - lastClickTime < 300) {
+                    showHeartAnimation(e.clientX, e.clientY, card);
+                    likeVideo(card);
+                } else {
+                    togglePlay(video, card);
+                }
+                lastClickTime = currentTime;
+            });
+            
+            card.dataset.eventsBound = "true";
+        });
+    }
+
+    function handleVideoError(card, video) {
+        card.classList.remove('loading');
+        
+        let retryCount = parseInt(card.dataset.retries || '0');
+        if (retryCount < 3) {
+            console.log(`Retrying video... attempt ${retryCount + 1}`);
+            card.dataset.retries = retryCount + 1;
+            setTimeout(() => {
+                if(card.dataset.src) {
+                    // 尝试加时间戳刷新
+                    const newUrl = getFreshUrl(card.dataset.src.split('?')[0]); 
+                    video.src = newUrl;
+                    video.load();
+                }
+            }, 1000);
+        } else {
+            // 显示重试按钮
+            card.querySelector('.error-overlay').classList.add('show');
+        }
+    }
+
+    // 手动重试按钮
+    window.retryLoad = function(btn) {
+        const card = btn.closest('.video-card');
+        const video = getMainVideo(card);
+        const blurVideo = getBlurVideo(card);
+        card.dataset.retries = '0'; // 重置重试计数
+        card.querySelector('.error-overlay').classList.remove('show');
+        card.classList.add('loading');
+        
+        // 尝试重新获取源
+        if (isStaticSource) {
+            video.load();
+            if (blurVideo) blurVideo.load();
+        } else {
+            const newUrl = getFreshUrl(currentApiUrl);
+            video.src = newUrl;
+            if (blurVideo) blurVideo.src = newUrl;
+            card.dataset.src = newUrl;
+            video.load();
+            if (blurVideo) blurVideo.load();
+            video.play().catch(e => console.error(e));
+        }
+    }
+
+    function togglePlay(video, card) {
+        const disc = card.querySelector('.disc-area');
+        
+        // 如果之前是静音的，点击时取消静音
+        if (video.muted) {
+            video.muted = false;
+            card.querySelector('.unmute-hint').classList.remove('show');
+            // 如果之前是暂停的，现在播放
+            if (video.paused) {
+                video.play();
+                card.classList.remove('paused');
+                if(disc) disc.classList.remove('paused');
+            }
+            return;
+        }
+
+        if (video.paused) {
+            video.play();
+            card.classList.remove('paused');
+            if(disc) disc.classList.remove('paused');
+        } else {
+            video.pause();
+            card.classList.add('paused');
+            if(disc) disc.classList.add('paused');
+        }
+        syncBlurVideo(card);
+    }
+
+    function updateProgress(e) {
+        const video = e.target;
+        if (!video.classList.contains('main-video')) return;
+        if(video.duration) {
+            const percent = (video.currentTime / video.duration) * 100;
+            const bar = video.parentElement.querySelector('.progress-bar');
+            if(bar) bar.style.width = `${percent}%`;
+        }
+    }
+
+    // ---------------- UI 辅助函数 ----------------
+
+    async function appendSingleVideo(url, author, title) {
+        const feed = document.getElementById('videoFeed');
+        const avatarUrl = await getVerifiedAvatarUrl();
+        const html = generateVideoHTML({
+            url: url, title: title, author: author,
+            avatar: avatarUrl
+        });
+        feed.insertAdjacentHTML('beforeend', html);
+        initVideoObserver();
+        initAllVideoEvents();
+    }
+
+    let lastTapTime = 0;
+    let tapTimeout = null;
+
+    window.toggleLike = function(element, event) {
+        if (event) event.stopPropagation();
+        const card = element.closest('.video-card');
+        const icon = element.querySelector('i');
+        
+        if (icon.classList.contains('liked')) {
+            icon.classList.remove('liked');
+            icon.classList.remove('bi-heart-fill');
+            icon.classList.add('bi-heart');
+            if (card) removeLikedVideo(card.dataset.videoId);
+        } else {
+            icon.classList.add('liked');
+            icon.classList.remove('bi-heart');
+            icon.classList.add('bi-heart-fill');
+            if (card) saveLikedVideo(card);
+        }
+    }
+
+    function likeVideo(card) {
+        const likeBtn = card.querySelector('.action-item i.bi-heart, .action-item i.bi-heart-fill');
+        if (likeBtn && !likeBtn.classList.contains('liked')) {
+            likeBtn.classList.add('liked');
+            likeBtn.classList.remove('bi-heart');
+            likeBtn.classList.add('bi-heart-fill');
+            saveLikedVideo(card);
+        }
+    }
+
+    function showHeartAnimation(x, y, container) {
+        const heart = document.createElement('i');
+        heart.className = 'bi bi-heart-fill double-tap-heart';
+        container.appendChild(heart);
+        setTimeout(() => heart.remove(), 800);
+    }
+
+    function getLikedVideos() {
+        try {
+            const stored = localStorage.getItem(STORAGE_KEY_LIKES);
+            return stored ? JSON.parse(stored) : [];
+        } catch (e) {
+            console.error('Error reading liked videos:', e);
+            return [];
+        }
+    }
+
+    function saveLikedVideo(card) {
+        const videoId = card.dataset.videoId;
+        if (!videoId) return;
+        
+        try {
+            const videos = getLikedVideos();
+            if (videos.find(v => v.id === videoId)) return;
+            
+            const newVideo = {
+                id: videoId,
+                url: card.dataset.videoUrl,
+                author: card.dataset.author,
+                desc: card.dataset.desc,
+                avatar: card.dataset.avatar,
+                timestamp: Date.now(),
+                likesCount: Math.floor(Math.random() * 10000) + 100
+            };
+            
+            videos.unshift(newVideo);
+            localStorage.setItem(STORAGE_KEY_LIKES, JSON.stringify(videos));
+            updateLikedCount();
+            showToast('已添加到我的喜欢');
+        } catch (e) {
+            console.error('Error saving liked video:', e);
+            showToast('保存失败');
+        }
+    }
+
+    function removeLikedVideo(videoId) {
+        try {
+            const videos = getLikedVideos();
+            const filtered = videos.filter(v => v.id !== videoId);
+            localStorage.setItem(STORAGE_KEY_LIKES, JSON.stringify(filtered));
+            updateLikedCount();
+            renderLikedGrid();
+            showToast('已从我的喜欢中移除');
+        } catch (e) {
+            console.error('Error removing liked video:', e);
+            showToast('删除失败');
+        }
+    }
+
+    function isVideoLiked(videoId) {
+        const videos = getLikedVideos();
+        return videos.some(v => v.id === videoId);
+    }
+
+    function updateLikedCount() {
+        const countEl = document.getElementById('likedCount');
+        if (countEl) {
+            countEl.textContent = getLikedVideos().length;
+        }
+    }
+
+    function renderLikedGrid() {
+        const grid = document.getElementById('likedVideosGrid');
+        const emptyState = document.getElementById('noLikedContent');
+        const videos = getLikedVideos();
+        
+        if (videos.length === 0) {
+            grid.innerHTML = '';
+            emptyState.style.display = 'block';
+            return;
+        }
+        
+        emptyState.style.display = 'none';
+        grid.innerHTML = videos.map(v => `
+            <div class="video-grid-item" onclick="playLikedVideo('${v.id}')">
+                <video src="${v.url}" muted preload="metadata" loop></video>
+                <div class="delete-btn" onclick="event.stopPropagation(); removeLikedById('${v.id}')">
+                    <i class="bi bi-x-lg" style="color: #fff; font-size: 14px;"></i>
+                </div>
+                <div class="likes-count">
+                    <i class="bi bi-heart-fill"></i>
+                    ${formatNumber(v.likesCount || 1000)}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function formatNumber(num) {
+        if (num >= 10000) {
+            return (num / 10000).toFixed(1) + 'w';
+        }
+        return num.toString();
+    }
+
+    function removeLikedById(videoId) {
+        removeLikedVideo(videoId);
+        renderLikedGrid();
+    }
+
+    function playLikedVideo(videoId) {
+        const videos = getLikedVideos();
+        const video = videos.find(v => v.id === videoId);
+        if (video) {
+            showHomeTab();
+            const feed = document.getElementById('videoFeed');
+            const avatarUrl = video.avatar || 'https://i.pravatar.cc/100?img=1';
+            const html = generateVideoHTML({
+                url: video.url,
+                title: video.desc,
+                author: video.author,
+                avatar: avatarUrl
+            });
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const newCard = tempDiv.firstElementChild;
+            newCard.dataset.videoId = videoId;
+            
+            feed.insertBefore(newCard, feed.firstChild);
+            feed.scrollTop = 0;
+            
+            setTimeout(() => {
+                initVideoObserver();
+                initAllVideoEvents();
+            }, 100);
+        }
+    }
+
+    function showProfileTab() {
+        document.getElementById('videoFeed').style.display = 'none';
+        document.getElementById('profilePage').classList.add('show');
+        document.querySelector('.bottom-tabs .tab-item.active')?.classList.remove('active');
+        document.querySelector('.bottom-tabs .tab-item:last-child').classList.add('active');
+        updateLikedCount();
+        renderLikedGrid();
+    }
+
+    function showHomeTab() {
+        document.getElementById('profilePage').classList.remove('show');
+        document.getElementById('videoFeed').style.display = 'block';
+        document.querySelector('.bottom-tabs .tab-item.active')?.classList.remove('active');
+        document.querySelector('.bottom-tabs .tab-item:first-child').classList.add('active');
+    }
+
+    function showLikedTab() {
+        const tabs = document.querySelectorAll('.profile-tab');
+        tabs.forEach(t => t.classList.remove('active'));
+        tabs[2].classList.add('active');
+        renderLikedGrid();
+    }
+
+    window.openCommentPopup = function(element) {
+        showToast('评论功能开发中...');
+    }
+
+    function handleFileImport(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const jsonContent = JSON.parse(e.target.result);
+                processImportedData(jsonContent);
+                closeSettings();
+                showToast('JSON导入成功');
+            } catch (err) { alert('JSON格式错误'); }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+
+    function processImportedData(data) {
+        let list = Array.isArray(data) ? data : (data.list || data.data || []);
+        if (list.length === 0) return alert("无有效数据");
+        isStaticSource = true;
+        currentApiUrl = ""; 
+        const feed = document.getElementById('videoFeed');
+        feed.innerHTML = '';
+        list.forEach(item => {
+             let url = item.url || item.video || item.src;
+             if(url) appendSingleVideo(url, item.author || '本地导入', item.title || '导入视频');
+        });
+    }
+
+    function openSettings() {
+        const modal = document.getElementById('settingsModal');
+        const btn = document.getElementById('settingsBtn');
+        document.body.classList.add('settings-open');
+        modal.classList.add('show');
+        if (btn) {
+            btn.classList.add('is-open');
+            btn.setAttribute('aria-expanded', 'true');
+        }
+    }
+    function closeSettings() {
+        const modal = document.getElementById('settingsModal');
+        const btn = document.getElementById('settingsBtn');
+        document.body.classList.remove('settings-open');
+        modal.classList.remove('show');
+        if (btn) {
+            btn.classList.remove('is-open');
+            btn.setAttribute('aria-expanded', 'false');
+        }
+    }
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        toast.style.display = 'block';
+        setTimeout(() => toast.style.display = 'none', 2000);
+    }
+</script>
+</body>
+</html>
