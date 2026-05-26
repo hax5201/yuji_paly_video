@@ -2,8 +2,11 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>✨ Miku Video ✨ 二次元视频</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>✨ 萝莉 Video ✨</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='10' fill='%2339d7e4'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         :root {
@@ -17,8 +20,25 @@
             --text-gray: #d1d5db;
             --pc-video-width: min(680px, calc(100vw - 60px));
             --pc-video-height: 100vh;
+            --glass-blur: 22px;
+            --dynamic-blur: 42px;
+            --glass-bg: rgba(255, 255, 255, 0.07);
+            --glass-border: rgba(255, 255, 255, 0.16);
+            --glass-highlight: rgba(255, 255, 255, 0.22);
+            --app-height: 100dvh;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --safe-left: env(safe-area-inset-left, 0px);
+            --safe-right: env(safe-area-inset-right, 0px);
+            --mobile-tab-h: 56px;
+            --mobile-ui-gap: 12px;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        html {
+            height: 100%;
+            height: var(--app-height);
+        }
 
         body {
             background:
@@ -34,9 +54,11 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            min-height: var(--app-height);
         }
         .app-container {
             height: 100vh;
+            height: var(--app-height);
             width: 100vw;
             position: relative;
             background: linear-gradient(180deg, rgba(5,8,24,0.95), rgba(3,5,12,0.98));
@@ -44,6 +66,80 @@
             margin: 0 auto;
             display: flex;
             flex-direction: column;
+            perspective: 1400px;
+            perspective-origin: 50% 40%;
+        }
+
+        /* 动态模糊背景层 */
+        .video-blur-layer {
+            position: absolute;
+            inset: -8%;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+            opacity: 0.92;
+            filter: blur(var(--dynamic-blur)) saturate(1.35) brightness(0.72);
+            transform: scale(1.12) translateZ(0);
+            animation: blurBreath 5s ease-in-out infinite;
+            will-change: filter, opacity;
+        }
+        .video-blur-layer video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        @keyframes blurBreath {
+            0%, 100% {
+                filter: blur(38px) saturate(1.25) brightness(0.68);
+                opacity: 0.88;
+            }
+            50% {
+                filter: blur(48px) saturate(1.45) brightness(0.76);
+                opacity: 0.94;
+            }
+        }
+        .video-card.playing .video-blur-layer {
+            animation-duration: 3.2s;
+        }
+
+        /* 3D 毛玻璃通用 */
+        .glass-3d {
+            background: var(--glass-bg);
+            backdrop-filter: blur(var(--glass-blur)) saturate(1.75);
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.75);
+            border: 1px solid var(--glass-border);
+            box-shadow:
+                0 12px 40px rgba(0, 0, 0, 0.35),
+                inset 0 1px 0 var(--glass-highlight),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+            transform-style: preserve-3d;
+            transition: transform 0.45s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.45s ease;
+        }
+        .glass-3d:hover {
+            transform: translateZ(12px) rotateX(1.5deg);
+            box-shadow:
+                0 18px 48px rgba(57, 215, 228, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.28);
+        }
+        .settings-modal .glass-3d:hover,
+        .top-nav.glass-3d:hover {
+            transform: none;
+            box-shadow:
+                0 12px 40px rgba(0, 0, 0, 0.35),
+                inset 0 1px 0 var(--glass-highlight),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        .video-card > video.main-video {
+            position: relative;
+            z-index: 1;
+        }
+
+        .video-feed {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            position: relative;
         }
 
         /* 响应式适配：PC端抖音网页版风格 */
@@ -88,22 +184,24 @@
                 transform: translateZ(0);
             }
 
-            video {
+            video.main-video {
                 width: 100%;
                 height: 100%;
                 object-fit: contain;
                 background: #000;
             }
+            .video-blur-layer video {
+                object-fit: cover;
+            }
 
             .top-nav {
-                width: 100%;
-                left: 0;
-                transform: none;
-                top: 0;
-                background: linear-gradient(to bottom, rgba(10,18,42,0.85), transparent);
-                padding: 18px 30px;
-                border-radius: 0;
-                justify-content: space-between;
+                width: auto;
+                left: 50%;
+                transform: translateX(-50%) translateZ(40px);
+                top: 16px;
+                padding: 12px 36px;
+                border-radius: 999px;
+                justify-content: center;
             }
 
             .top-nav span { 
@@ -217,34 +315,139 @@
             }
         }
 
-        /* 移动端样式保持原有逻辑 */
+        /* 移动端：全屏竖滑 + 安全区 + 控件布局 */
         @media (max-width: 767px) {
+            body {
+                background: #000;
+                align-items: stretch;
+            }
+
+            .app-container {
+                background: #000;
+                height: var(--app-height);
+                min-height: var(--app-height);
+                max-height: var(--app-height);
+            }
+
             .video-feed {
+                flex: 1;
                 height: 100%;
                 width: 100%;
+                overflow-x: hidden;
                 overflow-y: scroll;
                 scroll-snap-type: y mandatory;
-                overscroll-behavior-y: none;
+                overscroll-behavior-y: contain;
                 scroll-behavior: smooth;
                 -webkit-overflow-scrolling: touch;
+                touch-action: pan-y;
             }
             .video-feed::-webkit-scrollbar { display: none; }
+
             .video-card {
-                height: 100vh;
-                width: 100vw;
+                height: var(--app-height);
+                min-height: var(--app-height);
+                width: 100%;
                 scroll-snap-align: start;
-                scroll-snap-stop: always; 
+                scroll-snap-stop: always;
                 position: relative;
                 background: #000;
                 overflow: hidden;
-                will-change: transform;
-                transform: translateZ(0);
             }
-            video {
+
+            /* 手机端关闭双视频模糊层，减轻内存占用、提升播放成功率 */
+            .video-blur-layer {
+                display: none;
+            }
+
+            video.main-video {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
                 object-fit: cover;
+                background: #000;
             }
+
+            .top-nav {
+                top: calc(8px + var(--safe-top));
+                padding: 8px 18px;
+                max-width: calc(100% - 24px);
+            }
+            .top-nav span {
+                margin: 0 8px;
+                font-size: 14px;
+            }
+            .settings-btn {
+                width: 40px;
+                height: 40px;
+                margin-left: 10px;
+            }
+
+            .sidebar {
+                right: calc(6px + var(--safe-right));
+                bottom: calc(var(--mobile-tab-h) + var(--mobile-ui-gap) + var(--safe-bottom));
+                gap: 14px;
+                padding: 14px 10px;
+                transform: none;
+            }
+            .action-item i { font-size: 28px; }
+            .avatar-img { width: 46px; height: 46px; }
+            .disc-area { width: 46px; height: 46px; border-width: 6px; }
+            .disc-area img { width: 26px; height: 26px; }
+
+            .video-info {
+                left: calc(10px + var(--safe-left));
+                right: calc(72px + var(--safe-right));
+                bottom: calc(var(--mobile-tab-h) + var(--mobile-ui-gap) + var(--safe-bottom));
+                max-width: none;
+                padding: 10px 14px;
+                transform: none;
+            }
+            .author { font-size: 15px; }
+            .desc { font-size: 12px; max-height: 36px; }
+            .marquee { width: min(140px, 42vw); }
+
+            .progress-container {
+                bottom: calc(var(--mobile-tab-h) + var(--safe-bottom));
+                height: 2px;
+                z-index: 6;
+            }
+
             .bottom-tabs {
                 display: flex;
+                left: calc(8px + var(--safe-left));
+                right: calc(8px + var(--safe-right));
+                bottom: calc(4px + var(--safe-bottom));
+                height: var(--mobile-tab-h);
+                padding-bottom: 0;
+                transform: none;
+            }
+            .tab-item { font-size: 12px; padding: 4px 6px; }
+
+            .play-icon {
+                width: 72px;
+                height: 72px;
+                font-size: 36px;
+            }
+            .unmute-hint {
+                top: calc(64px + var(--safe-top));
+                font-size: 11px;
+            }
+
+            .video-card::after {
+                height: 240px;
+            }
+
+            .glass-3d:hover {
+                transform: none;
+            }
+
+            .settings-modal {
+                padding: calc(16px + var(--safe-top)) 16px calc(16px + var(--safe-bottom));
+            }
+            .modal-content {
+                width: 100%;
+                max-width: 100%;
             }
         }
         
@@ -257,6 +460,14 @@
             font-size: 15px;
             font-weight: 600;
             text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            pointer-events: none;
+            left: 50%;
+            transform: translateX(-50%) translateZ(30px);
+            top: 12px;
+            padding: 10px 28px;
+            border-radius: 999px;
+        }
+        .top-nav.glass-3d {
             pointer-events: none;
         }
         .top-nav > * { pointer-events: auto; }
@@ -273,6 +484,132 @@
         .nav-icon { position: absolute; font-size: 20px; padding: 10px; cursor: pointer; }
         .nav-left { left: 10px; }
         .nav-right { right: 10px; }
+
+        /* 设置按钮：固定毛玻璃 + 仅 GPU 动画（避免 blur 数值抖动） */
+        .settings-btn {
+            position: relative;
+            flex-shrink: 0;
+            width: 46px;
+            height: 46px;
+            margin-left: 14px;
+            padding: 0;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            isolation: isolate;
+            contain: layout style;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(1.6);
+            -webkit-backdrop-filter: blur(20px) saturate(1.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow:
+                0 6px 20px rgba(0, 0, 0, 0.28),
+                inset 0 1px 0 rgba(255, 255, 255, 0.22);
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
+            transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.4s ease, box-shadow 0.5s ease;
+            z-index: 2;
+        }
+        .settings-btn-glow {
+            position: absolute;
+            inset: -20%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(57, 215, 228, 0.35) 0%, rgba(255, 121, 198, 0.2) 45%, transparent 70%);
+            opacity: 0.65;
+            transform: translate3d(0, 0, 0) scale(1);
+            animation: settingsGlowBreath 5s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .settings-btn i {
+            position: relative;
+            z-index: 1;
+            font-size: 21px;
+            color: #ecffff;
+            text-shadow: 0 0 10px var(--miku-glow);
+            transform: translate3d(0, 0, 0);
+            transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .settings-btn:hover {
+            transform: translate3d(0, -2px, 0) scale(1.06);
+            border-color: rgba(57, 215, 228, 0.4);
+            box-shadow:
+                0 10px 28px rgba(57, 215, 228, 0.22),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+        .settings-btn:hover i {
+            transform: translate3d(0, 0, 0) rotate(90deg);
+        }
+        .settings-btn:active {
+            transform: translate3d(0, 0, 0) scale(0.96);
+            transition-duration: 0.15s;
+        }
+        .settings-btn.is-open {
+            transform: translate3d(0, 0, 0) scale(1);
+            border-color: rgba(255, 121, 198, 0.45);
+        }
+        .settings-btn.is-open i {
+            transform: translate3d(0, 0, 0) rotate(180deg);
+        }
+        @keyframes settingsGlowBreath {
+            0%, 100% { opacity: 0.5; transform: translate3d(0, 0, 0) scale(0.95); }
+            50% { opacity: 0.85; transform: translate3d(0, 0, 0) scale(1.08); }
+        }
+        body.settings-open .settings-btn-glow {
+            animation-play-state: paused;
+            opacity: 0.4;
+        }
+        body.settings-open .video-blur-layer {
+            animation-play-state: paused;
+        }
+
+        /* 设置弹窗：平滑进出场，弹窗内按钮不叠 3D */
+        .settings-modal .btn-action,
+        .settings-modal .btn-close {
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(14px) saturate(1.5);
+            -webkit-backdrop-filter: blur(14px) saturate(1.5);
+            transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease, background 0.35s ease;
+        }
+        .settings-modal .btn-action:hover,
+        .settings-modal .btn-close:hover {
+            transform: translate3d(0, -2px, 0) scale(1.02);
+        }
+        .settings-modal .btn-action:active,
+        .settings-modal .btn-close:active {
+            transform: translate3d(0, 0, 0) scale(0.98);
+            transition-duration: 0.12s;
+        }
+        .settings-modal .btn-confirm {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 6px 20px rgba(57, 215, 228, 0.25), inset 0 1px 0 rgba(255,255,255,0.18);
+        }
+        .settings-modal .btn-confirm:hover {
+            box-shadow: 0 8px 26px rgba(57, 215, 228, 0.35), inset 0 1px 0 rgba(255,255,255,0.22);
+        }
+        .settings-modal .btn-upload {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+        }
+        .settings-modal .btn-close {
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .settings-modal .source-select {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            transition: border-color 0.35s ease, box-shadow 0.35s ease;
+        }
+        .settings-modal .source-select:focus {
+            box-shadow: 0 0 0 2px rgba(57, 215, 228, 0.25);
+        }
         
         .video-card::after {
             content: '';
@@ -480,10 +817,15 @@
         /* 侧边栏 */
         .sidebar {
             position: absolute;
+            right: 12px;
+            bottom: 120px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 20px;
+            gap: 16px;
+            padding: 18px 12px;
+            border-radius: 28px;
+            transform: translateZ(24px) rotateY(-4deg);
         }
         .action-item {
             display: flex;
@@ -586,8 +928,13 @@
         .video-info {
             position: absolute;
             left: 15px;
+            bottom: 90px;
             z-index: 2;
             text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+            padding: 14px 18px;
+            border-radius: 16px;
+            max-width: 78%;
+            transform: translateZ(18px) rotateX(1deg);
         }
         .author { 
             font-size: 16px; 
@@ -672,16 +1019,19 @@
         /* 底部Tab */
         .bottom-tabs {
             position: absolute;
-            bottom: 0;
-            width: 100%;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            width: auto;
             height: 55px;
-            background: linear-gradient(to top, rgba(6,10,30,0.95), rgba(6,10,30,0.58));
             display: flex;
             justify-content: space-around;
             align-items: center;
             z-index: 10;
             padding: 0 10px;
             padding-bottom: 8px;
+            border-radius: 20px;
+            transform: translateZ(28px);
         }
         .tab-item { font-size: 13px; color: rgba(223,245,255,0.65); font-weight: 500; cursor: pointer; transition: all 0.3s; padding: 5px 10px; }
         .tab-item.active { color: #ecffff; text-shadow: 0 0 8px var(--miku-glow); }
@@ -724,18 +1074,42 @@
         
         /* 模态框样式 */
         .settings-modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 1000;
-            display: flex; justify-content: center; align-items: center;
-            opacity: 0; pointer-events: none; transition: opacity 0.3s;
-            backdrop-filter: blur(8px);
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background: rgba(5, 8, 20, 0.72);
+            backdrop-filter: blur(18px) saturate(1.35);
+            -webkit-backdrop-filter: blur(18px) saturate(1.35);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.45s;
         }
-        .settings-modal.show { opacity: 1; pointer-events: auto; }
+        .settings-modal.show {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
         .modal-content {
-            background: linear-gradient(135deg, #1a1a2e, #16213e);
-            padding: 28px; border-radius: 20px; text-align: center;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-            border: 1px solid rgba(57, 215, 228, 0.25);
+            padding: 28px;
+            border-radius: 24px;
+            text-align: center;
+            max-width: 90%;
+            width: 400px;
+            transform: translate3d(0, 16px, 0) scale(0.94);
+            opacity: 0;
+            transition:
+                transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+            will-change: transform, opacity;
+        }
+        .settings-modal.show .modal-content {
+            transform: translate3d(0, 0, 0) scale(1);
+            opacity: 1;
         }
         .modal-title { font-size: 19px; font-weight: bold; margin-bottom: 22px; color: #fff; text-shadow: 0 0 10px var(--miku-glow); }
         .source-select-container { margin-bottom: 20px; }
@@ -755,7 +1129,7 @@
             transition: all 0.3s;
         }
         .btn-confirm { background: linear-gradient(135deg, var(--primary-color), var(--secondary-accent)); color: white; }
-        .btn-confirm:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(255, 121, 198, 0.5); }
+        .btn-confirm:hover { box-shadow: 0 6px 24px rgba(255, 121, 198, 0.5); }
         .btn-upload { background: #333; color: white; }
         .btn-upload:hover { background: #3d3d3d; }
         .btn-close {
@@ -768,13 +1142,15 @@
         
         /* Toast & Loading */
         .toast {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: linear-gradient(135deg, rgba(10,18,42,0.95), rgba(6,10,30,0.95)); 
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) translateZ(80px);
             color: white; padding: 14px 28px;
-            border-radius: 12px; z-index: 2000; display: none;
+            border-radius: 16px; z-index: 2000; display: none;
             font-size: 14px;
-            box-shadow: 0 4px 24px rgba(57, 215, 228, 0.35);
-            border: 1px solid rgba(57, 215, 228, 0.3);
+            backdrop-filter: blur(20px) saturate(1.6);
+            -webkit-backdrop-filter: blur(20px) saturate(1.6);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 12px 40px rgba(57, 215, 228, 0.25);
         }
         .loading-spinner {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -851,11 +1227,12 @@
 </head>
 <body>
 <div class="app-container">
-    <div class="top-nav">
-        <i class="bi bi-stars nav-icon nav-left"></i>
-        <span>关注</span>
-        <span class="active">推荐✨</span>
-        <i class="bi bi-gear nav-icon nav-right" onclick="openSettings()"></i>
+    <div class="top-nav glass-3d">
+        <span class="active">🌸 萝莉 ✨</span>
+        <button type="button" class="settings-btn" id="settingsBtn" onclick="openSettings()" aria-label="打开设置" aria-expanded="false">
+            <span class="settings-btn-glow" aria-hidden="true"></span>
+            <i class="bi bi-gear-fill"></i>
+        </button>
     </div>
     
     <div class="video-feed" id="videoFeed"></div>
@@ -895,8 +1272,8 @@
         </div>
     </div>
     
-    <div class="bottom-tabs">
-        <div class="tab-item active" onclick="showHomeTab()">🏠 首页</div>
+    <div class="bottom-tabs glass-3d">
+        <div class="tab-item active" onclick="showHomeTab()">🏠 萝莉</div>
         <div class="tab-item">👥 朋友</div>
         <div class="tab-add-btn"><i class="bi bi-plus-lg"></i></div>
         <div class="tab-item">💬 消息</div>
@@ -905,17 +1282,17 @@
 </div>
 
 <div class="settings-modal" id="settingsModal">
-    <div class="modal-content">
-        <div class="modal-title">✨ 视频源设置 ✨</div>
+    <div class="modal-content glass-3d">
+        <div class="modal-title">🌸 萝莉源切换</div>
         <div class="source-select-container">
             <select class="source-select" id="videoSourceSelect">
                 <option value="">-- 请选择视频源 --</option>
             </select>
         </div>
-        <button class="btn-action btn-confirm" onclick="confirmSwitchSource()">✨ 确定切换</button>
-        <button class="btn-action btn-upload" onclick="document.getElementById('jsonFileInput').click()">📁 导入本地JSON</button>
+        <button type="button" class="btn-action btn-confirm glass-3d" onclick="confirmSwitchSource()">✨ 确定切换</button>
+        <button type="button" class="btn-action btn-upload glass-3d" onclick="document.getElementById('jsonFileInput').click()">📁 导入本地JSON</button>
         <input type="file" id="jsonFileInput" accept=".json" style="display: none;">
-        <button class="btn-close" onclick="closeSettings()">关闭</button>
+        <button type="button" class="btn-close glass-3d" onclick="closeSettings()">关闭</button>
     </div>
 </div>
 
@@ -932,64 +1309,113 @@
     
     const STORAGE_KEY_LIKES = 'douyin_pro_liked_videos';
     const PRELOAD_OFFSET = 3;
-    const STORAGE_KEY_URL = 'douyin_pro_source_url';
+    const STORAGE_KEY_INDEX = 'douyin_pro_source_idx';
     const STORAGE_KEY_NAME = 'douyin_pro_source_name';
-    
-    const builtInVideoSources = [
-    {"分类名称": "热舞", "视频源API地址": "http://api.yujn.cn/api/rewu.php?type=video"},
-    {"分类名称": "黑丝", "视频源API地址": "http://api.yujn.cn/api/heisis.php?type=video"},
-    {"分类名称": "diskgirl国内", "视频源API地址": "https://diskgirl.com/get/get1.php?_t="},
-    {"分类名称": "快手小姐姐", "视频源API地址": "http://api.yujn.cn/api/ksxjjsp.php?type=video"},
-    {"分类名称": "白丝", "视频源API地址": "http://api.yujn.cn/api/baisis.php?type=video"},
-    {"分类名称": "漫展", "视频源API地址": "http://api.yujn.cn/api/manzhan.php?type=video"},
-    {"分类名称": "鞠婧祎", "视频源API地址": "http://api.yujn.cn/api/jjy.php?type=video"},
-    {"分类名称": "章若楠", "视频源API地址": "http://api.yujn.cn/api/zrn.php?type=video"},
-    {"分类名称": "汉服", "视频源API地址": "http://api.yujn.cn/api/hanfu.php?type=video"},
-    {"分类名称": "极品美腿", "视频源API地址": "http://api.yujn.cn/api/jpmt.php?type=video"},
-    {"分类名称": "穿搭", "视频源API地址": "http://api.yujn.cn/api/chuanda.php?type=video"},
-    {"分类名称": "丝滑舞蹈", "视频源API地址": "http://api.yujn.cn/api/shwd.php?type=video"},
-    {"分类名称": "完美身材", "视频源API地址": "http://api.yujn.cn/api/wmsc.php?type=video"},
-    {"分类名称": "吊带", "视频源API地址": "http://api.yujn.cn/api/diaodai.php?type=video"},
-    {"分类名称": "清纯", "视频源API地址": "http://api.yujn.cn/api/qingchun.php?type=video"},
-    {"分类名称": "COS", "视频源API地址": "http://api.yujn.cn/api/COS.php?type=video"},
-    {"分类名称": "街拍", "视频源API地址": "http://api.yujn.cn/api/jiepai.php?type=video"},
-    {"分类名称": "快手变装", "视频源API地址": "http://api.yujn.cn/api/ksbianzhuang.php?type=video"},
-    {"分类名称": "萝莉", "视频源API地址": "http://api.yujn.cn/api/luoli.php?type=video"},
-    {"分类名称": "甜妹", "视频源API地址": "http://api.yujn.cn/api/tianmei.php?type=video"},
-    {"分类名称": "JK", "视频源API地址": "http://api.yujn.cn/api/jksp.php?type=video"},
-    {"分类名称": "玉足", "视频源API地址": "http://api.yujn.cn/api/yuzu.php?type=video"},
-    {"分类名称": "漫画芋", "视频源API地址": "http://api.yujn.cn/api/manhuay.php?type=video"},
-    {"分类名称": "潇潇", "视频源API地址": "http://api.yujn.cn/api/xiaoxiao.php?type=video"},
-    {"分类名称": "变装", "视频源API地址": "http://api.yujn.cn/api/bianzhuang.php?type=video"},
-    {"分类名称": "DJ姐姐", "视频源API地址": "http://xjj1.716888.xyz/fenlei/djxjj/dj1.php?random="},
-    {"分类名称": "极品钰足", "视频源API地址": "http://xjj1.716888.xyz/fenlei/zj/jipinyz/jipinyz.php?random="},
-    {"分类名称": "学姐系列", "视频源API地址": "http://xjj1.716888.xyz/fenlei/zj/xuejie/xuejie.php?random="},
-    {"分类名称": "卡哇伊", "视频源API地址": "http://xjj1.716888.xyz/fenlei/zj/kawayi/kawayi.php?random="},
-    {"分类名称": "嫩嫩系列", "视频源API地址": "http://xjj1.716888.xyz/fenlei/zj/nennen/nennen.php?random="},
-    {"分类名称": "丝滑舞蹈2", "视频源API地址": "http://xjj1.716888.xyz/fenlei/zj/sihuawd/sihuawd.php?random="},
-    {"分类名称": "完美身材2", "视频源API地址": "http://xjj1.716888.xyz/fenlei/zj/wanmeisc/wanmeisc.php?random="},
-    {"分类名称": "精品变装", "视频源API地址": "http://xjj1.716888.xyz/fenlei/zj/jingpinbz/jingpinbz.php?random="},
-    {"分类名称": "极品萝莉", "视频源API地址": "http://xjj1.716888.xyz/fenlei/zj/jipinll/jipinll.php?random="},
-    {"分类名称": "你的裕梦", "视频源API地址": "http://xjj1.716888.xyz/fenlei/zj/nideym/nideym.php?random="},
-    {"分类名称": "甜妹系列", "视频源API地址": "http://xjj1.716888.xyz/fenlei/zj/tianmei/tianmei.php?random="},
-    {"分类名称": "御丝系列", "视频源API地址": "http://xjj1.716888.xyz/fenlei/zj/yusi/yusi.php?random="},
-    {"分类名称": "热舞系列", "视频源API地址": "http://xjj1.716888.xyz/fenlei/zj/rewu/rewu.php?random="},
-    {"分类名称": "精品收藏", "视频源API地址": "http://xjj1.716888.xyz/fenlei/zj/jingpinsc/jingpinsc.php?random="},
-    {"分类名称": "横屏福利小姐姐", "视频源API地址": "https://kpi.21lhz.cn/api.php?url=v1.21lhz.cn"},
-    {"分类名称": "快手女大学生", "视频源API地址": "https://api.yujn.cn/api/nvda.php?type=video"},
-    {"分类名称": "抖音瞳瞳", "视频源API地址": "https://api.yujn.cn/api/tongtong.php?type=video"},
-    {"分类名称": "蛇姐", "视频源API地址": "http://api.yujn.cn/api/shejie.php?type=video"},
-    {"分类名称": "巨乳小姐姐", "视频源API地址": "http://xjj2.716888.xyz/fenlei/kuan3/v.php?_t="},
-    {"分类名称": "龙珠小姐姐", "视频源API地址": "https://www.hhlqilongzhu.cn/api/MP4_xiaojiejie.php"},
-    {"分类名称": "萝莉2", "视频源API地址": "https://api.cenguigui.cn/api/mp4/api.php?type=luoli&format=mp4"},
-    {"分类名称": "diskgirl国外", "视频源API地址": "http://api.yujn.cn/api/diskgirlw.php?type=video"},
-    {"分类名称": "cosplay2", "视频源API地址": "http://api.yujn.cn/api/cosplay2.php?type=video"},
-    {"分类名称": "jk2", "视频源API地址": "http://api.yujn.cn/api/jk2.php?type=video"}
+    const STORAGE_KEY_URL_LEGACY = 'douyin_pro_source_url';
+
+    /*
+     * ========== API 加密说明（纯前端） ==========
+     * 1. 源码里只保存密文 u，不直接写 http://... 地址
+     * 2. 页面加载时用 decodeApi() 在内存里还原，视频照常请求
+     * 3. 换地址：打开同目录 api-encoder.html → 输入新 URL → 复制密文替换下方 u
+     * 4. 可改密钥片段 _apiKeyParts（改后需用新工具重新生成全部密文）
+     * 注意：前端加密只能防「随便看一眼」，无法防懂技术的人；
+     *       若要真正隐藏，请用 proxy-server.py 做本地代理（见该文件顶部说明）
+     */
+    const _apiKeyParts = ['Miku', 'Luoli', '@', '2026'];
+    const HEAD_API_ENC = 'JR0fBT9PQEMfchxISlc9AEUWIloOHABvWlVTUg==';
+
+    const BUILTIN_SOURCES_ENC = [
+        { n: '萝莉', u: 'JR0fBXZaQA0ZKRxJR1wjRwgbYxQfBUYsR19eX2MZAwVzARYcDH1EWVZTIg==' },
+        { n: '极品萝莉', u: 'JR0fBXZaQBQDKgMeBQd7UVNNYg0WFkYmV15eUyRGER9jHwYcAC5eXB1cJBkCGyAZQRwBMA1CU1gpBgZI' },
+        { n: '萝莉2', u: 'JR0fBT9PQEMIMFseUVMjDh4cKwAGQgouHVFCX2IEG0FjFB8FRzBaQA1CNBkOSCAAAAAAZlRfQFssHVYYPEE=' }
     ];
+
+    let builtInVideoSources = [];
+
+    function getApiKey() {
+        return _apiKeyParts.join('');
+    }
+
+    function encodeApi(plainUrl, key) {
+        const k = key || getApiKey();
+        const xored = [...plainUrl].map((ch, i) =>
+            String.fromCharCode(ch.charCodeAt(0) ^ k.charCodeAt(i % k.length))
+        ).join('');
+        return btoa(unescape(encodeURIComponent(xored)));
+    }
+
+    function decodeApi(cipher, key) {
+        const k = key || getApiKey();
+        try {
+            const xored = decodeURIComponent(escape(atob(cipher)));
+            return [...xored].map((ch, i) =>
+                String.fromCharCode(ch.charCodeAt(0) ^ k.charCodeAt(i % k.length))
+            ).join('');
+        } catch (e) {
+            console.error('API 解密失败，请检查密文或密钥', e);
+            return '';
+        }
+    }
+
+    function initVideoSources() {
+        builtInVideoSources = BUILTIN_SOURCES_ENC.map(item => ({
+            '分类名称': item.n,
+            '视频源API地址': decodeApi(item.u)
+        })).filter(s => s['视频源API地址']);
+    }
+
+    function getSourceIndexByUrl(url) {
+        return builtInVideoSources.findIndex(s => s['视频源API地址'] === url);
+    }
+
+    function getMainVideo(card) {
+        return card.querySelector('video.main-video') || card.querySelector('video');
+    }
+
+    function getBlurVideo(card) {
+        return card.querySelector('.video-blur-layer video');
+    }
+
+    function syncBlurVideo(card) {
+        const main = getMainVideo(card);
+        const blur = getBlurVideo(card);
+        if (!main || !blur) return;
+        if (blur.src !== main.currentSrc && main.currentSrc) blur.src = main.currentSrc;
+        else if (!blur.src && main.src) blur.src = main.src;
+        if (Math.abs(blur.currentTime - main.currentTime) > 0.3) {
+            blur.currentTime = main.currentTime;
+        }
+        if (!main.paused && blur.paused) blur.play().catch(() => {});
+        if (main.paused && !blur.paused) blur.pause();
+    }
 
     let fallbackAvatarIndex = 0;
     let scrollSwitchLocked = false;
     let wheelDeltaBuffer = 0;
+
+    function isMobileDevice() {
+        return window.matchMedia('(max-width: 767px)').matches;
+    }
+
+    function initMobileViewport() {
+        const setAppHeight = () => {
+            const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            document.documentElement.style.setProperty('--app-height', `${h}px`);
+        };
+        setAppHeight();
+        window.addEventListener('resize', setAppHeight);
+        window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 150));
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', setAppHeight);
+        }
+    }
+
+    function getCardScrollHeight() {
+        const card = document.querySelector('.video-card');
+        if (card) return card.offsetHeight;
+        return window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    }
     const fallbackAvatars = [
         'https://i.pravatar.cc/100?img=1',
         'https://i.pravatar.cc/100?img=2',
@@ -999,7 +1425,7 @@
     ];
 
     async function getVerifiedAvatarUrl() {
-        const apiUrl = 'https://v2.xxapi.cn/api/head';
+        const apiUrl = decodeApi(HEAD_API_ENC);
         
         try {
             const response = await fetch(apiUrl, {
@@ -1024,38 +1450,41 @@
 
     // ---------------- 初始化 ----------------
     document.addEventListener('DOMContentLoaded', () => {
+        initMobileViewport();
+        initVideoSources();
         fillSourceSelect();
-        const savedUrl = localStorage.getItem(STORAGE_KEY_URL);
+
         const savedName = localStorage.getItem(STORAGE_KEY_NAME);
-        
-        // 全局交互监听，用于解锁音频
-        document.body.addEventListener('click', () => {
-            hasUserInteracted = true;
-        }, { once: true });
+        let savedIndex = parseInt(localStorage.getItem(STORAGE_KEY_INDEX), 10);
+
+        // 兼容旧版：曾把明文 URL 存在 localStorage，尝试映射为索引后删除明文
+        const legacyUrl = localStorage.getItem(STORAGE_KEY_URL_LEGACY);
+        if ((Number.isNaN(savedIndex) || savedIndex < 0) && legacyUrl) {
+            const legacyIdx = getSourceIndexByUrl(legacyUrl);
+            if (legacyIdx >= 0) savedIndex = legacyIdx;
+            localStorage.removeItem(STORAGE_KEY_URL_LEGACY);
+        }
+
+        // 全局交互监听，用于解锁音频（手机端 touchstart 也要监听）
+        const unlockMedia = () => { hasUserInteracted = true; };
+        document.body.addEventListener('click', unlockMedia, { once: true });
+        document.body.addEventListener('touchstart', unlockMedia, { once: true, passive: true });
 
         document.getElementById('jsonFileInput').addEventListener('change', handleFileImport);
 
-        if (savedUrl) {
-            const select = document.getElementById('videoSourceSelect');
-            select.value = savedUrl;
-            currentApiUrl = savedUrl;
-            currentCategoryName = savedName || "推荐";
-            isStaticSource = false;
-            showToast(`正在加载 ${currentCategoryName}`);
-            initFeed(3); 
+        if (!Number.isNaN(savedIndex) && savedIndex >= 0 && savedIndex < builtInVideoSources.length) {
+            applyVideoSource(savedIndex, savedName, true);
         } else {
-            // 默认加载第一个源作为演示，防止空白
-            const defaultSource = builtInVideoSources[0];
-            currentApiUrl = defaultSource['视频源API地址'];
-            currentCategoryName = defaultSource['分类名称'];
-            initFeed(3);
+            applyVideoSource(0, null, false);
         }
+
+        initDynamicBlurLoop();
 
         const videoFeed = document.getElementById('videoFeed');
 
         function scrollToCardStep(step) {
             if (!videoFeed || scrollSwitchLocked) return;
-            const cardHeight = videoFeed.querySelector('.video-card')?.offsetHeight || window.innerHeight;
+            const cardHeight = getCardScrollHeight();
             const cards = videoFeed.querySelectorAll('.video-card');
             if (!cards.length || !cardHeight) return;
 
@@ -1074,16 +1503,18 @@
             }, 360);
         }
 
-        // PC端滚轮切换视频（缓冲+节流，避免连续抖动）
-        document.querySelector('.video-feed').addEventListener('wheel', (e) => {
-            e.preventDefault();
-            wheelDeltaBuffer += e.deltaY;
+        // 仅 PC 端启用滚轮切换
+        if (window.matchMedia('(min-width: 768px)').matches) {
+            document.querySelector('.video-feed').addEventListener('wheel', (e) => {
+                e.preventDefault();
+                wheelDeltaBuffer += e.deltaY;
 
-            if (Math.abs(wheelDeltaBuffer) < 35) return;
-            const step = wheelDeltaBuffer > 0 ? 1 : -1;
-            wheelDeltaBuffer = 0;
-            scrollToCardStep(step);
-        }, { passive: false });
+                if (Math.abs(wheelDeltaBuffer) < 35) return;
+                const step = wheelDeltaBuffer > 0 ? 1 : -1;
+                wheelDeltaBuffer = 0;
+                scrollToCardStep(step);
+            }, { passive: false });
+        }
 
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space') {
@@ -1097,7 +1528,7 @@
                     }
                 });
                 if (currentCard) {
-                    const video = currentCard.querySelector('video');
+                    const video = getMainVideo(currentCard);
                     togglePlay(video, currentCard);
                 }
             }
@@ -1109,11 +1540,26 @@
         });
     });
 
+    function applyVideoSource(index, nameOverride, showLoadingToast) {
+        const source = builtInVideoSources[index];
+        if (!source) return;
+        currentApiUrl = source['视频源API地址'];
+        currentCategoryName = nameOverride || source['分类名称'];
+        isStaticSource = false;
+        const select = document.getElementById('videoSourceSelect');
+        if (select) select.value = String(index);
+        localStorage.setItem(STORAGE_KEY_INDEX, String(index));
+        localStorage.setItem(STORAGE_KEY_NAME, currentCategoryName);
+        if (showLoadingToast) showToast(`正在加载 ${currentCategoryName}`);
+        initFeed(3);
+    }
+
     function fillSourceSelect() {
         const select = document.getElementById('videoSourceSelect');
-        builtInVideoSources.forEach(source => {
+        select.innerHTML = '<option value="">-- 请选择视频源 --</option>';
+        builtInVideoSources.forEach((source, index) => {
             const option = document.createElement('option');
-            option.value = source['视频源API地址'];
+            option.value = String(index);
             option.textContent = source['分类名称'];
             select.appendChild(option);
         });
@@ -1123,19 +1569,12 @@
 
     function confirmSwitchSource() {
         const select = document.getElementById('videoSourceSelect');
-        const selectedUrl = select.value;
+        const selectedIndex = parseInt(select.value, 10);
         const selectedName = select.options[select.selectedIndex].text;
-        
-        if (!selectedUrl) return showToast('请先选择一个分类');
-        
-        currentApiUrl = selectedUrl;
-        currentCategoryName = selectedName;
-        isStaticSource = false;
-        
-        localStorage.setItem(STORAGE_KEY_URL, selectedUrl);
-        localStorage.setItem(STORAGE_KEY_NAME, selectedName);
-        
-        initFeed(3);
+
+        if (Number.isNaN(selectedIndex) || selectedIndex < 0) return showToast('请先选择一个分类');
+
+        applyVideoSource(selectedIndex, selectedName, false);
         closeSettings();
         showToast(`已切换至: ${selectedName}`);
     }
@@ -1161,8 +1600,8 @@
             const avatarUrl = await getVerifiedAvatarUrl();
             const html = generateVideoHTML({
                 url: freshUrl,
-                title: `#${currentCategoryName} #热门推荐`,
-                author: `@${currentCategoryName}精选`,
+                title: `#${currentCategoryName} #萝莉精选`,
+                author: `@${currentCategoryName}酱`,
                 avatar: avatarUrl
             });
             feed.insertAdjacentHTML('beforeend', html);
@@ -1188,9 +1627,15 @@
         const comments = Math.floor(Math.random() * 5000) + 100;
         const videoId = 'video_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         const isLiked = isVideoLiked(videoId);
+        const mobile = isMobileDevice();
+        const blurLayer = mobile ? '' : `
+            <div class="video-blur-layer" aria-hidden="true">
+                <video class="blur-video" src="${info.url}" loop playsinline muted preload="metadata"></video>
+            </div>`;
         
         return `
         <div class="video-card paused" data-video-id="${videoId}" data-video-url="${info.url}" data-author="${info.author}" data-desc="${info.title}" data-avatar="${info.avatar}">
+            ${blurLayer}
             <div class="loading-spinner"></div>
             <div class="error-overlay">
                 <i class="bi bi-exclamation-circle" style="font-size: 40px; color: #999;"></i>
@@ -1199,17 +1644,20 @@
             </div>
             <div class="unmute-hint"><i class="bi bi-volume-mute-fill"></i> 点击取消静音</div>
             <video 
+                class="main-video"
                 src="${info.url}" 
                 loop 
+                muted
                 playsinline 
                 webkit-playsinline 
-                preload="metadata" 
+                x5-playsinline
                 x5-video-player-type="h5-page"
+                preload="${mobile ? 'auto' : 'metadata'}"
             ></video>
             
             <div class="video-overlay">
-                <div class="play-icon"><i class="bi bi-play-fill"></i></div>
-                <div class="sidebar">
+                <div class="play-icon glass-3d"><i class="bi bi-play-fill"></i></div>
+                <div class="sidebar glass-3d">
                     <div class="avatar-box">
                         <img src="${info.avatar}" class="avatar-img">
                         <div class="follow-btn"><i class="bi bi-plus"></i></div>
@@ -1223,7 +1671,7 @@
                     <div class="action-item"><i class="bi bi-share-fill"></i><span class="action-count">分享</span></div>
                     <div class="disc-area paused"><img src="${info.avatar}"></div>
                 </div>
-                <div class="video-info">
+                <div class="video-info glass-3d">
                     <div class="author">${info.author}</div>
                     <div class="desc">${info.title}</div>
                     <div class="music"><i class="bi bi-music-note-beamed"></i><div class="marquee">热门BGM - ${info.author}的原声</div></div>
@@ -1240,13 +1688,13 @@
         
         const options = {
             root: document.querySelector('.video-feed'),
-            threshold: 0.6 // 降低阈值，确保更容易触发播放
+            threshold: isMobileDevice() ? 0.55 : 0.6
         };
         
         observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 const card = entry.target;
-                const video = card.querySelector('video');
+                const video = getMainVideo(card);
                 
                 if (entry.isIntersecting) {
                     // 进入视野
@@ -1264,22 +1712,30 @@
     }
 
     async function handleCardActive(card, video) {
+        if (!video) return;
+
+        video.playsInline = true;
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
+
         // 1. 恢复 src (如果被清理了)
         if (!video.getAttribute('src') && card.dataset.src) {
             video.src = card.dataset.src;
+            const blur = getBlurVideo(card);
+            if (blur) blur.src = card.dataset.src;
             video.load();
+            if (blur) blur.load();
         }
 
         // 2. 尝试播放
         try {
             card.classList.add('loading');
             
-            // 如果已经有用户交互，尝试有声播放
-            if (hasUserInteracted) {
-                video.muted = false;
+            // 手机端/iOS：先静音才能自动 inline 播放
+            if (isMobileDevice() || !hasUserInteracted) {
+                video.muted = true;
             } else {
-                // 否则静音播放以符合浏览器策略
-                video.muted = true; 
+                video.muted = false;
             }
             
             const playPromise = video.play();
@@ -1318,6 +1774,7 @@
                     });
                 });
             }
+            syncBlurVideo(card);
         } catch (e) {
             console.error(e);
         }
@@ -1330,6 +1787,15 @@
         const disc = card.querySelector('.disc-area');
         if(disc) disc.classList.add('paused');
         card.querySelector('.unmute-hint').classList.remove('show');
+        const blur = getBlurVideo(card);
+        if (blur) { blur.pause(); blur.currentTime = 0; }
+    }
+
+    function initDynamicBlurLoop() {
+        if (isMobileDevice()) return;
+        setInterval(() => {
+            document.querySelectorAll('.video-card.playing').forEach(card => syncBlurVideo(card));
+        }, 200);
     }
 
     // 处理无限加载和简单的内存管理
@@ -1344,18 +1810,20 @@
         
         // 内存优化：保留当前及前后各2个，其他移除src
         allCards.forEach((card, index) => {
-            const vid = card.querySelector('video');
-            if (Math.abs(index - currentIndex) > 3) {
-                if (vid.getAttribute('src')) {
-                    vid.removeAttribute('src');
-                    vid.load(); // 释放内存
+            const vid = getMainVideo(card);
+            const blurVid = getBlurVideo(card);
+            const release = () => {
+                if (vid?.getAttribute('src')) { vid.removeAttribute('src'); vid.load(); }
+                if (blurVid?.getAttribute('src')) { blurVid.removeAttribute('src'); blurVid.load(); }
+            };
+            const restore = () => {
+                if (card.dataset.src) {
+                    if (vid && !vid.getAttribute('src')) vid.src = card.dataset.src;
+                    if (blurVid && !blurVid.getAttribute('src')) blurVid.src = card.dataset.src;
                 }
-            } else {
-                // 预加载附近的
-                if (!vid.getAttribute('src') && card.dataset.src) {
-                    vid.src = card.dataset.src;
-                }
-            }
+            };
+            if (Math.abs(index - currentIndex) > 3) release();
+            else restore();
         });
     }
 
@@ -1365,7 +1833,8 @@
         document.querySelectorAll('.video-card').forEach(card => {
             if(card.dataset.eventsBound) return;
             
-            const video = card.querySelector('video');
+            const video = getMainVideo(card);
+            const blurVideo = getBlurVideo(card);
             
             // 记录原始 URL
             if(video.getAttribute('src') && !card.dataset.src) {
@@ -1383,8 +1852,14 @@
                 card.classList.remove('loading');
             });
             
-            // 播放进度
-            video.addEventListener('timeupdate', updateProgress);
+            // 播放进度 + 同步模糊层
+            video.addEventListener('timeupdate', (e) => {
+                updateProgress(e);
+                syncBlurVideo(card);
+            });
+            if (blurVideo) {
+                blurVideo.addEventListener('loadeddata', () => syncBlurVideo(card));
+            }
             
             // 等待数据
             video.addEventListener('waiting', () => {
@@ -1448,7 +1923,8 @@
     // 手动重试按钮
     window.retryLoad = function(btn) {
         const card = btn.closest('.video-card');
-        const video = card.querySelector('video');
+        const video = getMainVideo(card);
+        const blurVideo = getBlurVideo(card);
         card.dataset.retries = '0'; // 重置重试计数
         card.querySelector('.error-overlay').classList.remove('show');
         card.classList.add('loading');
@@ -1456,11 +1932,14 @@
         // 尝试重新获取源
         if (isStaticSource) {
             video.load();
+            if (blurVideo) blurVideo.load();
         } else {
             const newUrl = getFreshUrl(currentApiUrl);
             video.src = newUrl;
+            if (blurVideo) blurVideo.src = newUrl;
             card.dataset.src = newUrl;
             video.load();
+            if (blurVideo) blurVideo.load();
             video.play().catch(e => console.error(e));
         }
     }
@@ -1490,10 +1969,12 @@
             card.classList.add('paused');
             if(disc) disc.classList.add('paused');
         }
+        syncBlurVideo(card);
     }
 
     function updateProgress(e) {
         const video = e.target;
+        if (!video.classList.contains('main-video')) return;
         if(video.duration) {
             const percent = (video.currentTime / video.duration) * 100;
             const bar = video.parentElement.querySelector('.progress-bar');
@@ -1739,8 +2220,26 @@
         });
     }
 
-    function openSettings() { document.getElementById('settingsModal').classList.add('show'); }
-    function closeSettings() { document.getElementById('settingsModal').classList.remove('show'); }
+    function openSettings() {
+        const modal = document.getElementById('settingsModal');
+        const btn = document.getElementById('settingsBtn');
+        document.body.classList.add('settings-open');
+        modal.classList.add('show');
+        if (btn) {
+            btn.classList.add('is-open');
+            btn.setAttribute('aria-expanded', 'true');
+        }
+    }
+    function closeSettings() {
+        const modal = document.getElementById('settingsModal');
+        const btn = document.getElementById('settingsBtn');
+        document.body.classList.remove('settings-open');
+        modal.classList.remove('show');
+        if (btn) {
+            btn.classList.remove('is-open');
+            btn.setAttribute('aria-expanded', 'false');
+        }
+    }
     function showToast(msg) {
         const toast = document.getElementById('toast');
         toast.innerText = msg;
