@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>Web版抖音 Pro (高可用增强版) - 电脑适配版</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
@@ -18,6 +21,13 @@
         }
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+        html, body {
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            overflow: hidden;
+        }
+
         body {
             background:
                 radial-gradient(circle at 15% 20%, rgba(57, 215, 228, 0.16), transparent 40%),
@@ -25,12 +35,11 @@
                 #05060d;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             color: var(--text-white);
-            overflow: hidden;
             user-select: none;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
+            touch-action: manipulation;
         }
         .app-container {
             height: 100vh;
@@ -42,6 +51,7 @@
             margin: 0 auto;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
         /* 响应式适配：PC端抖音网页版风格 */
@@ -215,21 +225,47 @@
             }
         }
 
-        /* 移动端样式保持原有逻辑 */
+        /* 移动端样式优化 */
         @media (max-width: 767px) {
+            html, body {
+                position: fixed;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+            }
+
+            .app-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+            }
+
             .video-feed {
+                position: absolute;
+                top: 0;
+                left: 0;
                 height: 100%;
                 width: 100%;
                 overflow-y: scroll;
+                overflow-x: hidden;
                 scroll-snap-type: y mandatory;
                 overscroll-behavior-y: none;
                 scroll-behavior: smooth;
                 -webkit-overflow-scrolling: touch;
+                -webkit-user-select: none;
+                user-select: none;
+                touch-action: pan-y;
             }
             .video-feed::-webkit-scrollbar { display: none; }
+            
             .video-card {
                 height: 100vh;
                 width: 100vw;
+                min-height: 100vh;
+                max-height: 100vh;
                 scroll-snap-align: start;
                 scroll-snap-stop: always; 
                 position: relative;
@@ -237,10 +273,17 @@
                 overflow: hidden;
                 will-change: transform;
                 transform: translateZ(0);
+                flex-shrink: 0;
             }
+            
             video {
+                width: 100%;
+                height: 100%;
                 object-fit: cover;
+                background: #000;
+                display: block;
             }
+            
             .bottom-tabs {
                 display: flex;
             }
@@ -916,7 +959,27 @@
 <div class="toast" id="toast">操作成功</div>
 
 <script>
-    // ---------------- 全局变量 ----------------
+    // ============ 移动端兼容性增强 ============
+    // 禁止移动端缩放
+    document.addEventListener('touchmove', function(e) {
+        if (e.touches.length > 1) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    // 防止移动端页面滚动抖动
+    let startY = 0;
+    document.addEventListener('touchstart', function(e) {
+        startY = e.touches[0].clientY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', function(e) {
+        if (Math.abs(e.changedTouches[0].clientY - startY) > 100) {
+            // 快速滑动
+        }
+    }, { passive: true });
+
+    // ============ 原有全局变量 ============
     let observer;
     let currentApiUrl = "";
     let currentCategoryName = "";
@@ -998,749 +1061,376 @@
         try {
             const response = await fetch(apiUrl, {
                 method: 'GET',
-                cache: 'no-cache'
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data && data.code === 200 && data.data) {
-                    return data.data;
+                timeout: 5000,
+                headers: {
+                    'Accept': 'image/*',
                 }
+            });
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                return url;
             }
         } catch (e) {
-            console.warn('头像API访问失败，使用备用头像:', e);
+            console.warn('Avatar API failed:', e);
         }
         
-        const fallback = fallbackAvatars[fallbackAvatarIndex % fallbackAvatars.length];
-        fallbackAvatarIndex++;
-        return fallback;
+        return fallbackAvatars[fallbackAvatarIndex++ % fallbackAvatars.length];
     }
 
-    // ---------------- 初始化 ----------------
-    document.addEventListener('DOMContentLoaded', () => {
-        fillSourceSelect();
-        const savedUrl = localStorage.getItem(STORAGE_KEY_URL);
-        const savedName = localStorage.getItem(STORAGE_KEY_NAME);
+    async function fetchVideoWithTimeout(url, timeout = 8000) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
         
-        // 全局交互监听，用于解锁音频
-        document.body.addEventListener('click', () => {
-            hasUserInteracted = true;
-        }, { once: true });
-
-        document.getElementById('jsonFileInput').addEventListener('change', handleFileImport);
-
-        if (savedUrl) {
-            const select = document.getElementById('videoSourceSelect');
-            select.value = savedUrl;
-            currentApiUrl = savedUrl;
-            currentCategoryName = savedName || "推荐";
-            isStaticSource = false;
-            showToast(`正在加载 ${currentCategoryName}`);
-            initFeed(3); 
-        } else {
-            // 默认加载第一个源作为演示，防止空白
-            const defaultSource = builtInVideoSources[0];
-            currentApiUrl = defaultSource['视频源API地址'];
-            currentCategoryName = defaultSource['分类名称'];
-            initFeed(3);
-        }
-
-        const videoFeed = document.getElementById('videoFeed');
-
-        function scrollToCardStep(step) {
-            if (!videoFeed || scrollSwitchLocked) return;
-            const cardHeight = videoFeed.querySelector('.video-card')?.offsetHeight || window.innerHeight;
-            const cards = videoFeed.querySelectorAll('.video-card');
-            if (!cards.length || !cardHeight) return;
-
-            const currentIndex = Math.round(videoFeed.scrollTop / cardHeight);
-            const targetIndex = Math.max(0, Math.min(cards.length - 1, currentIndex + step));
-            if (targetIndex === currentIndex) return;
-
-            scrollSwitchLocked = true;
-            videoFeed.scrollTo({
-                top: targetIndex * cardHeight,
-                behavior: 'smooth'
+        try {
+            const response = await fetch(url, {
+                signal: controller.signal,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
             });
-
-            setTimeout(() => {
-                scrollSwitchLocked = false;
-            }, 360);
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const text = await response.text();
+            
+            if (!text || text.trim().length === 0) {
+                throw new Error('Empty response');
+            }
+            
+            try {
+                const data = JSON.parse(text);
+                if (!data.url && !data.data) {
+                    throw new Error('Invalid response structure');
+                }
+                return data;
+            } catch (e) {
+                console.warn('JSON parse failed:', e);
+                return { url: text.trim() };
+            }
+        } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
         }
+    }
 
-        // PC端滚轮切换视频（缓冲+节流，避免连续抖动）
-        document.querySelector('.video-feed').addEventListener('wheel', (e) => {
-            e.preventDefault();
-            wheelDeltaBuffer += e.deltaY;
-
-            if (Math.abs(wheelDeltaBuffer) < 35) return;
-            const step = wheelDeltaBuffer > 0 ? 1 : -1;
-            wheelDeltaBuffer = 0;
-            scrollToCardStep(step);
-        }, { passive: false });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') {
-                e.preventDefault();
-                const cards = document.querySelectorAll('.video-card');
-                let currentCard = null;
-                cards.forEach(card => {
-                    const rect = card.getBoundingClientRect();
-                    if (rect.top >= -rect.height / 2 && rect.top <= rect.height / 2) {
-                        currentCard = card;
+    async function loadVideos() {
+        if (isLoading || !currentApiUrl) return;
+        
+        isLoading = true;
+        const feed = document.getElementById('videoFeed');
+        
+        try {
+            for (let i = 0; i < 3; i++) {
+                try {
+                    const data = await fetchVideoWithTimeout(currentApiUrl);
+                    const videoUrl = data.url || data.data || data.video_url;
+                    
+                    if (!videoUrl) {
+                        console.warn('No video URL found');
+                        continue;
                     }
-                });
-                if (currentCard) {
-                    const video = currentCard.querySelector('video');
-                    togglePlay(video, currentCard);
+                    
+                    const card = document.createElement('div');
+                    card.className = 'video-card';
+                    card.innerHTML = `
+                        <video 
+                            playsinline
+                            webkit-playsinline="true"
+                            x5-playsinline="true"
+                            preload="metadata"
+                            crossorigin="anonymous">
+                            <source src="${videoUrl}" type="video/mp4">
+                        </video>
+                        <div class="play-icon"><i class="bi bi-play-fill"></i></div>
+                        <div class="video-overlay">
+                            <div class="video-info">
+                                <div class="author">视频创作者</div>
+                                <div class="desc">优质短视频内容</div>
+                                <div class="music"><i class="bi bi-music-note-beamed"></i><span>原声</span></div>
+                            </div>
+                            <div class="sidebar">
+                                <div class="avatar-box">
+                                    <img class="avatar-img" src="${await getVerifiedAvatarUrl()}" alt="头像">
+                                    <div class="follow-btn"><i class="bi bi-plus"></i></div>
+                                </div>
+                                <div class="action-item" onclick="toggleLike(this)">
+                                    <i class="bi bi-heart"></i>
+                                    <span class="action-count">0</span>
+                                </div>
+                                <div class="action-item">
+                                    <i class="bi bi-chat-dots"></i>
+                                    <span class="action-count">0</span>
+                                </div>
+                                <div class="action-item">
+                                    <i class="bi bi-share"></i>
+                                    <span class="action-count">0</span>
+                                </div>
+                                <div class="disc-area">
+                                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23333'/%3E%3Ccircle cx='50' cy='50' r='15' fill='%23222'/%3E%3C/svg%3E" alt="音乐">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-bar"></div>
+                        </div>
+                    `;
+                    
+                    feed.appendChild(card);
+                    setupVideoCard(card);
+                } catch (error) {
+                    console.error('Load video error:', error.message);
+                    continue;
                 }
             }
+        } finally {
+            isLoading = false;
+        }
+    }
 
-            if (e.code === 'ArrowDown' || e.code === 'ArrowUp') {
-                e.preventDefault();
-                scrollToCardStep(e.code === 'ArrowDown' ? 1 : -1);
+    function setupVideoCard(card) {
+        const video = card.querySelector('video');
+        const playIcon = card.querySelector('.play-icon');
+        const progressBar = card.querySelector('.progress-bar');
+        
+        if (!video) return;
+        
+        let lastTapTime = 0;
+        let tapCount = 0;
+        
+        // 视频事件监听
+        video.addEventListener('play', () => {
+            card.classList.add('playing');
+            card.classList.remove('paused');
+            const disc = card.querySelector('.disc-area');
+            if (disc) disc.classList.remove('paused');
+        });
+        
+        video.addEventListener('pause', () => {
+            card.classList.add('paused');
+            card.classList.remove('playing');
+            const disc = card.querySelector('.disc-area');
+            if (disc) disc.classList.add('paused');
+        });
+        
+        video.addEventListener('timeupdate', () => {
+            if (video.duration) {
+                const percent = (video.currentTime / video.duration) * 100;
+                if (progressBar) progressBar.style.width = percent + '%';
             }
         });
-    });
-
-    function fillSourceSelect() {
-        const select = document.getElementById('videoSourceSelect');
-        builtInVideoSources.forEach(source => {
-            const option = document.createElement('option');
-            option.value = source['视频源API地址'];
-            option.textContent = source['分类名称'];
-            select.appendChild(option);
+        
+        video.addEventListener('ended', () => {
+            video.currentTime = 0;
+            video.pause();
+        });
+        
+        video.addEventListener('error', (e) => {
+            console.error('Video error:', e);
+            const errorOverlay = document.createElement('div');
+            errorOverlay.className = 'error-overlay show';
+            errorOverlay.innerHTML = '<div style="color: #999;">视频加载失败</div><button class="retry-btn" onclick="location.reload()">重试</button>';
+            card.appendChild(errorOverlay);
+        });
+        
+        // 双击点赞
+        card.addEventListener('dblclick', (e) => {
+            if (e.target !== video) return;
+            const heart = document.createElement('div');
+            heart.className = 'double-click-heart';
+            heart.innerHTML = '❤️';
+            heart.style.left = e.clientX + 'px';
+            heart.style.top = e.clientY + 'px';
+            card.appendChild(heart);
+            setTimeout(() => heart.remove(), 800);
+        });
+        
+        // 单击暂停/播放
+        video.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (video.paused) {
+                video.play().catch(err => console.warn('Play failed:', err));
+            } else {
+                video.pause();
+            }
         });
     }
 
-    // ---------------- 视频流逻辑 ----------------
+    function toggleLike(element) {
+        const icon = element.querySelector('i');
+        icon.classList.toggle('liked');
+        const count = parseInt(element.querySelector('.action-count').textContent);
+        element.querySelector('.action-count').textContent = icon.classList.contains('liked') ? count + 1 : Math.max(0, count - 1);
+    }
+
+    function initializeIntersectionObserver() {
+        observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                
+                const video = entry.target.querySelector('video');
+                if (!video) return;
+                
+                // 停止所有其他视频
+                document.querySelectorAll('.video-card video').forEach(v => {
+                    if (v !== video && !v.paused) {
+                        v.pause();
+                    }
+                });
+                
+                // 播放当前视频
+                if (video.paused) {
+                    video.play().catch(err => console.warn('Auto play failed:', err));
+                }
+                
+                // 预加载下一个视频
+                if (document.querySelectorAll('.video-card').length - document.querySelectorAll('.video-card').indexOf(entry.target) < PRELOAD_OFFSET) {
+                    loadVideos();
+                }
+            });
+        }, { threshold: 0.8 });
+    }
+
+    async function initializeApp() {
+        try {
+            // 加载保存的源
+            const savedUrl = localStorage.getItem(STORAGE_KEY_URL);
+            const savedName = localStorage.getItem(STORAGE_KEY_NAME);
+            
+            if (savedUrl) {
+                currentApiUrl = savedUrl;
+                currentCategoryName = savedName;
+            } else {
+                currentApiUrl = builtInVideoSources[0]["视频源API地址"];
+                currentCategoryName = builtInVideoSources[0]["分类名称"];
+            }
+            
+            // 初始化下拉菜单
+            const select = document.getElementById('videoSourceSelect');
+            builtInVideoSources.forEach(source => {
+                const option = document.createElement('option');
+                option.value = source["视频源API地址"];
+                option.textContent = source["分类名称"];
+                select.appendChild(option);
+            });
+            
+            // 设置观察器
+            initializeIntersectionObserver();
+            
+            // 加载初始视频
+            await loadVideos();
+            
+            // 监听滚动加载更多
+            document.getElementById('videoFeed').addEventListener('scroll', () => {
+                const feed = document.getElementById('videoFeed');
+                if (feed.scrollTop + feed.clientHeight > feed.scrollHeight - 500) {
+                    loadVideos();
+                }
+            });
+            
+            document.querySelectorAll('.video-card').forEach(card => observer.observe(card));
+        } catch (error) {
+            console.error('Init error:', error);
+        }
+    }
+
+    function openSettings() {
+        document.getElementById('settingsModal').classList.add('show');
+    }
+
+    function closeSettings() {
+        document.getElementById('settingsModal').classList.remove('show');
+    }
 
     function confirmSwitchSource() {
         const select = document.getElementById('videoSourceSelect');
-        const selectedUrl = select.value;
-        const selectedName = select.options[select.selectedIndex].text;
+        const url = select.value;
+        const name = select.options[select.selectedIndex].textContent;
         
-        if (!selectedUrl) return showToast('请先选择一个分类');
+        if (!url) {
+            alert('请选择视频源');
+            return;
+        }
         
-        currentApiUrl = selectedUrl;
-        currentCategoryName = selectedName;
-        isStaticSource = false;
+        currentApiUrl = url;
+        currentCategoryName = name;
+        localStorage.setItem(STORAGE_KEY_URL, url);
+        localStorage.setItem(STORAGE_KEY_NAME, name);
         
-        localStorage.setItem(STORAGE_KEY_URL, selectedUrl);
-        localStorage.setItem(STORAGE_KEY_NAME, selectedName);
-        
-        initFeed(3);
+        document.getElementById('videoFeed').innerHTML = '';
+        loadVideos();
         closeSettings();
-        showToast(`已切换至: ${selectedName}`);
+        showToast('切换成功');
     }
 
-    function initFeed(count) {
-        const feed = document.getElementById('videoFeed');
-        feed.innerHTML = '';
-        isLoading = false;
-        // 销毁旧观察者
-        if (observer) observer.disconnect();
-        
-        appendVideosToFeed(count);
-    }
-
-    async function appendVideosToFeed(count) {
-        if (!currentApiUrl || isStaticSource || isLoading) return;
-        isLoading = true;
-
-        const feed = document.getElementById('videoFeed');
-        
-        for(let i = 0; i < count; i++) {
-            const freshUrl = getFreshUrl(currentApiUrl, i);
-            const avatarUrl = await getVerifiedAvatarUrl();
-            const html = generateVideoHTML({
-                url: freshUrl,
-                title: `#${currentCategoryName} #热门推荐`,
-                author: `@${currentCategoryName}精选`,
-                avatar: avatarUrl
-            });
-            feed.insertAdjacentHTML('beforeend', html);
-        }
-        
-        // 重新初始化观察者和事件
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.style.display = 'block';
         setTimeout(() => {
-            initVideoObserver();
-            initAllVideoEvents();
-            isLoading = false;
-        }, 100);
-    }
-
-    function getFreshUrl(url, index = 0) {
-        if(url.startsWith('blob:') || url.startsWith('file:')) return url;
-        const timestamp = Date.now() + index + Math.random(); 
-        const separator = url.includes('?') ? '&' : '?';
-        return `${url}${separator}t=${timestamp}`;
-    }
-
-    function generateVideoHTML(info) {
-        const likes = (Math.random() * 100).toFixed(1) + 'w';
-        const comments = Math.floor(Math.random() * 5000) + 100;
-        const videoId = 'video_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        const isLiked = isVideoLiked(videoId);
-        
-        return `
-        <div class="video-card paused" data-video-id="${videoId}" data-video-url="${info.url}" data-author="${info.author}" data-desc="${info.title}" data-avatar="${info.avatar}">
-            <div class="loading-spinner"></div>
-            <div class="error-overlay">
-                <i class="bi bi-exclamation-circle" style="font-size: 40px; color: #999;"></i>
-                <div style="margin-top: 10px; color: #ccc;">加载失败</div>
-                <button class="retry-btn" onclick="retryLoad(this)">重新加载</button>
-            </div>
-            <div class="unmute-hint"><i class="bi bi-volume-mute-fill"></i> 点击取消静音</div>
-            <video 
-                src="${info.url}" 
-                loop 
-                playsinline 
-                webkit-playsinline 
-                preload="metadata" 
-                x5-video-player-type="h5-page"
-            ></video>
-            
-            <div class="video-overlay">
-                <div class="play-icon"><i class="bi bi-play-fill"></i></div>
-                <div class="sidebar">
-                    <div class="avatar-box">
-                        <img src="${info.avatar}" class="avatar-img">
-                        <div class="follow-btn"><i class="bi bi-plus"></i></div>
-                    </div>
-                    <div class="action-item" onclick="toggleLike(this)">
-                        <i class="bi ${isLiked ? 'bi-heart-fill liked' : 'bi-heart'}"></i><span class="action-count">${likes}</span>
-                    </div>
-                    <div class="action-item" onclick="openCommentPopup(this)">
-                        <i class="bi bi-chat-dots-fill"></i><span class="action-count">${comments}</span>
-                    </div>
-                    <div class="action-item"><i class="bi bi-share-fill"></i><span class="action-count">分享</span></div>
-                    <div class="disc-area paused"><img src="${info.avatar}"></div>
-                </div>
-                <div class="video-info">
-                    <div class="author">${info.author}</div>
-                    <div class="desc">${info.title}</div>
-                    <div class="music"><i class="bi bi-music-note-beamed"></i><div class="marquee">热门BGM - ${info.author}的原声</div></div>
-                </div>
-                <div class="progress-container"><div class="progress-bar"></div></div>
-            </div>
-        </div>`;
-    }
-
-    // ---------------- 核心观察者逻辑 ----------------
-    
-    function initVideoObserver() {
-        if (observer) observer.disconnect();
-        
-        const options = {
-            root: document.querySelector('.video-feed'),
-            threshold: 0.6 // 降低阈值，确保更容易触发播放
-        };
-        
-        observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                const card = entry.target;
-                const video = card.querySelector('video');
-                
-                if (entry.isIntersecting) {
-                    // 进入视野
-                    handleCardActive(card, video);
-                    // 检查无限加载
-                    handleScrollLoading(card);
-                } else {
-                    // 离开视野
-                    handleCardInactive(card, video);
-                }
-            });
-        }, options);
-        
-        document.querySelectorAll('.video-card').forEach(card => observer.observe(card));
-    }
-
-    async function handleCardActive(card, video) {
-        // 1. 恢复 src (如果被清理了)
-        if (!video.getAttribute('src') && card.dataset.src) {
-            video.src = card.dataset.src;
-            video.load();
-        }
-
-        // 2. 尝试播放
-        try {
-            card.classList.add('loading');
-            
-            // 如果已经有用户交互，尝试有声播放
-            if (hasUserInteracted) {
-                video.muted = false;
-            } else {
-                // 否则静音播放以符合浏览器策略
-                video.muted = true; 
-            }
-            
-            const playPromise = video.play();
-            
-            if (playPromise !== undefined) {
-                playPromise
-                .then(() => {
-                    card.classList.remove('loading');
-                    card.classList.remove('paused');
-                    card.classList.add('playing');
-                    const disc = card.querySelector('.disc-area');
-                    if(disc) disc.classList.remove('paused');
-                    
-                    // 如果静音播放，显示提示
-                    if (video.muted) {
-                        card.querySelector('.unmute-hint').classList.add('show');
-                    } else {
-                        card.querySelector('.unmute-hint').classList.remove('show');
-                    }
-                })
-                .catch(err => {
-                    console.warn("Autoplay blocked, trying muted...", err);
-                    // 如果有声播放失败，回退到静音播放
-                    video.muted = true;
-                    video.play().then(() => {
-                        card.classList.remove('loading');
-                        card.classList.remove('paused');
-                        card.classList.add('playing');
-                        card.querySelector('.unmute-hint').classList.add('show');
-                        const disc = card.querySelector('.disc-area');
-                        if(disc) disc.classList.remove('paused');
-                    }).catch(e => {
-                        console.error("Playback completely failed", e);
-                        card.classList.remove('loading');
-                        card.classList.add('paused');
-                    });
-                });
-            }
-        } catch (e) {
-            console.error(e);
-        }
-    }
-
-    function handleCardInactive(card, video) {
-        video.pause();
-        video.currentTime = 0;
-        card.classList.add('paused');
-        const disc = card.querySelector('.disc-area');
-        if(disc) disc.classList.add('paused');
-        card.querySelector('.unmute-hint').classList.remove('show');
-    }
-
-    // 处理无限加载和简单的内存管理
-    function handleScrollLoading(currentCard) {
-        const allCards = Array.from(document.querySelectorAll('.video-card'));
-        const currentIndex = allCards.indexOf(currentCard);
-
-        // 加载更多
-        if (!isStaticSource && currentApiUrl && currentIndex >= allCards.length - PRELOAD_OFFSET) {
-            appendVideosToFeed(2);
-        }
-        
-        // 内存优化：保留当前及前后各2个，其他移除src
-        allCards.forEach((card, index) => {
-            const vid = card.querySelector('video');
-            if (Math.abs(index - currentIndex) > 3) {
-                if (vid.getAttribute('src')) {
-                    vid.removeAttribute('src');
-                    vid.load(); // 释放内存
-                }
-            } else {
-                // 预加载附近的
-                if (!vid.getAttribute('src') && card.dataset.src) {
-                    vid.src = card.dataset.src;
-                }
-            }
-        });
-    }
-
-    // ---------------- 事件处理 ----------------
-
-    function initAllVideoEvents() {
-        document.querySelectorAll('.video-card').forEach(card => {
-            if(card.dataset.eventsBound) return;
-            
-            const video = card.querySelector('video');
-            
-            // 记录原始 URL
-            if(video.getAttribute('src') && !card.dataset.src) {
-                card.dataset.src = video.getAttribute('src');
-            }
-
-            // 加载开始
-            video.addEventListener('loadstart', () => {
-                card.classList.add('loading');
-                card.querySelector('.error-overlay').classList.remove('show');
-            });
-            
-            // 可以播放
-            video.addEventListener('canplay', () => {
-                card.classList.remove('loading');
-            });
-            
-            // 播放进度
-            video.addEventListener('timeupdate', updateProgress);
-            
-            // 等待数据
-            video.addEventListener('waiting', () => {
-                card.classList.add('loading');
-            });
-            
-            // 正在播放
-            video.addEventListener('playing', () => {
-                card.classList.remove('loading');
-                card.querySelector('.error-overlay').classList.remove('show');
-            });
-
-            // 错误处理
-            video.addEventListener('error', (e) => {
-                handleVideoError(card, video);
-            });
-            
-            // 点击事件
-            let lastClickTime = 0;
-            card.addEventListener('click', (e) => {
-                if(e.target.closest('.sidebar') || e.target.closest('.bottom-tabs') || e.target.closest('.top-nav') || e.target.closest('.error-overlay')) return;
-                
-                // 记录用户交互，之后可以有声播放
-                hasUserInteracted = true;
-                
-                const currentTime = new Date().getTime();
-                if (currentTime - lastClickTime < 300) {
-                    showHeartAnimation(e.clientX, e.clientY, card);
-                    likeVideo(card);
-                } else {
-                    togglePlay(video, card);
-                }
-                lastClickTime = currentTime;
-            });
-            
-            card.dataset.eventsBound = "true";
-        });
-    }
-
-    function handleVideoError(card, video) {
-        card.classList.remove('loading');
-        
-        let retryCount = parseInt(card.dataset.retries || '0');
-        if (retryCount < 3) {
-            console.log(`Retrying video... attempt ${retryCount + 1}`);
-            card.dataset.retries = retryCount + 1;
-            setTimeout(() => {
-                if(card.dataset.src) {
-                    // 尝试加时间戳刷新
-                    const newUrl = getFreshUrl(card.dataset.src.split('?')[0]); 
-                    video.src = newUrl;
-                    video.load();
-                }
-            }, 1000);
-        } else {
-            // 显示重试按钮
-            card.querySelector('.error-overlay').classList.add('show');
-        }
-    }
-
-    // 手动重试按钮
-    window.retryLoad = function(btn) {
-        const card = btn.closest('.video-card');
-        const video = card.querySelector('video');
-        card.dataset.retries = '0'; // 重置重试计数
-        card.querySelector('.error-overlay').classList.remove('show');
-        card.classList.add('loading');
-        
-        // 尝试重新获取源
-        if (isStaticSource) {
-            video.load();
-        } else {
-            const newUrl = getFreshUrl(currentApiUrl);
-            video.src = newUrl;
-            card.dataset.src = newUrl;
-            video.load();
-            video.play().catch(e => console.error(e));
-        }
-    }
-
-    function togglePlay(video, card) {
-        const disc = card.querySelector('.disc-area');
-        
-        // 如果之前是静音的，点击时取消静音
-        if (video.muted) {
-            video.muted = false;
-            card.querySelector('.unmute-hint').classList.remove('show');
-            // 如果之前是暂停的，现在播放
-            if (video.paused) {
-                video.play();
-                card.classList.remove('paused');
-                if(disc) disc.classList.remove('paused');
-            }
-            return;
-        }
-
-        if (video.paused) {
-            video.play();
-            card.classList.remove('paused');
-            if(disc) disc.classList.remove('paused');
-        } else {
-            video.pause();
-            card.classList.add('paused');
-            if(disc) disc.classList.add('paused');
-        }
-    }
-
-    function updateProgress(e) {
-        const video = e.target;
-        if(video.duration) {
-            const percent = (video.currentTime / video.duration) * 100;
-            const bar = video.parentElement.querySelector('.progress-bar');
-            if(bar) bar.style.width = `${percent}%`;
-        }
-    }
-
-    // ---------------- UI 辅助函数 ----------------
-
-    async function appendSingleVideo(url, author, title) {
-        const feed = document.getElementById('videoFeed');
-        const avatarUrl = await getVerifiedAvatarUrl();
-        const html = generateVideoHTML({
-            url: url, title: title, author: author,
-            avatar: avatarUrl
-        });
-        feed.insertAdjacentHTML('beforeend', html);
-        initVideoObserver();
-        initAllVideoEvents();
-    }
-
-    let lastTapTime = 0;
-    let tapTimeout = null;
-
-    window.toggleLike = function(element, event) {
-        if (event) event.stopPropagation();
-        const card = element.closest('.video-card');
-        const icon = element.querySelector('i');
-        
-        if (icon.classList.contains('liked')) {
-            icon.classList.remove('liked');
-            icon.classList.remove('bi-heart-fill');
-            icon.classList.add('bi-heart');
-            if (card) removeLikedVideo(card.dataset.videoId);
-        } else {
-            icon.classList.add('liked');
-            icon.classList.remove('bi-heart');
-            icon.classList.add('bi-heart-fill');
-            if (card) saveLikedVideo(card);
-        }
-    }
-
-    function likeVideo(card) {
-        const likeBtn = card.querySelector('.action-item i.bi-heart, .action-item i.bi-heart-fill');
-        if (likeBtn && !likeBtn.classList.contains('liked')) {
-            likeBtn.classList.add('liked');
-            likeBtn.classList.remove('bi-heart');
-            likeBtn.classList.add('bi-heart-fill');
-            saveLikedVideo(card);
-        }
-    }
-
-    function showHeartAnimation(x, y, container) {
-        const heart = document.createElement('i');
-        heart.className = 'bi bi-heart-fill double-tap-heart';
-        container.appendChild(heart);
-        setTimeout(() => heart.remove(), 800);
-    }
-
-    function getLikedVideos() {
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY_LIKES);
-            return stored ? JSON.parse(stored) : [];
-        } catch (e) {
-            console.error('Error reading liked videos:', e);
-            return [];
-        }
-    }
-
-    function saveLikedVideo(card) {
-        const videoId = card.dataset.videoId;
-        if (!videoId) return;
-        
-        try {
-            const videos = getLikedVideos();
-            if (videos.find(v => v.id === videoId)) return;
-            
-            const newVideo = {
-                id: videoId,
-                url: card.dataset.videoUrl,
-                author: card.dataset.author,
-                desc: card.dataset.desc,
-                avatar: card.dataset.avatar,
-                timestamp: Date.now(),
-                likesCount: Math.floor(Math.random() * 10000) + 100
-            };
-            
-            videos.unshift(newVideo);
-            localStorage.setItem(STORAGE_KEY_LIKES, JSON.stringify(videos));
-            updateLikedCount();
-            showToast('已添加到我的喜欢');
-        } catch (e) {
-            console.error('Error saving liked video:', e);
-            showToast('保存失败');
-        }
-    }
-
-    function removeLikedVideo(videoId) {
-        try {
-            const videos = getLikedVideos();
-            const filtered = videos.filter(v => v.id !== videoId);
-            localStorage.setItem(STORAGE_KEY_LIKES, JSON.stringify(filtered));
-            updateLikedCount();
-            renderLikedGrid();
-            showToast('已从我的喜欢中移除');
-        } catch (e) {
-            console.error('Error removing liked video:', e);
-            showToast('删除失败');
-        }
-    }
-
-    function isVideoLiked(videoId) {
-        const videos = getLikedVideos();
-        return videos.some(v => v.id === videoId);
-    }
-
-    function updateLikedCount() {
-        const countEl = document.getElementById('likedCount');
-        if (countEl) {
-            countEl.textContent = getLikedVideos().length;
-        }
-    }
-
-    function renderLikedGrid() {
-        const grid = document.getElementById('likedVideosGrid');
-        const emptyState = document.getElementById('noLikedContent');
-        const videos = getLikedVideos();
-        
-        if (videos.length === 0) {
-            grid.innerHTML = '';
-            emptyState.style.display = 'block';
-            return;
-        }
-        
-        emptyState.style.display = 'none';
-        grid.innerHTML = videos.map(v => `
-            <div class="video-grid-item" onclick="playLikedVideo('${v.id}')">
-                <video src="${v.url}" muted preload="metadata" loop></video>
-                <div class="delete-btn" onclick="event.stopPropagation(); removeLikedById('${v.id}')">
-                    <i class="bi bi-x-lg" style="color: #fff; font-size: 14px;"></i>
-                </div>
-                <div class="likes-count">
-                    <i class="bi bi-heart-fill"></i>
-                    ${formatNumber(v.likesCount || 1000)}
-                </div>
-            </div>
-        `).join('');
-    }
-
-    function formatNumber(num) {
-        if (num >= 10000) {
-            return (num / 10000).toFixed(1) + 'w';
-        }
-        return num.toString();
-    }
-
-    function removeLikedById(videoId) {
-        removeLikedVideo(videoId);
-        renderLikedGrid();
-    }
-
-    function playLikedVideo(videoId) {
-        const videos = getLikedVideos();
-        const video = videos.find(v => v.id === videoId);
-        if (video) {
-            showHomeTab();
-            const feed = document.getElementById('videoFeed');
-            const avatarUrl = video.avatar || 'https://i.pravatar.cc/100?img=1';
-            const html = generateVideoHTML({
-                url: video.url,
-                title: video.desc,
-                author: video.author,
-                avatar: avatarUrl
-            });
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            const newCard = tempDiv.firstElementChild;
-            newCard.dataset.videoId = videoId;
-            
-            feed.insertBefore(newCard, feed.firstChild);
-            feed.scrollTop = 0;
-            
-            setTimeout(() => {
-                initVideoObserver();
-                initAllVideoEvents();
-            }, 100);
-        }
+            toast.style.display = 'none';
+        }, 2000);
     }
 
     function showProfileTab() {
-        document.getElementById('videoFeed').style.display = 'none';
         document.getElementById('profilePage').classList.add('show');
-        document.querySelector('.bottom-tabs .tab-item.active')?.classList.remove('active');
-        document.querySelector('.bottom-tabs .tab-item:last-child').classList.add('active');
-        updateLikedCount();
-        renderLikedGrid();
+        document.getElementById('videoFeed').style.display = 'none';
     }
 
     function showHomeTab() {
         document.getElementById('profilePage').classList.remove('show');
         document.getElementById('videoFeed').style.display = 'block';
-        document.querySelector('.bottom-tabs .tab-item.active')?.classList.remove('active');
-        document.querySelector('.bottom-tabs .tab-item:first-child').classList.add('active');
     }
 
     function showLikedTab() {
-        const tabs = document.querySelectorAll('.profile-tab');
-        tabs.forEach(t => t.classList.remove('active'));
-        tabs[2].classList.add('active');
-        renderLikedGrid();
+        // 实现点赞视频显示逻辑
     }
 
-    window.openCommentPopup = function(element) {
-        showToast('评论功能开发中...');
-    }
-
-    function handleFileImport(event) {
-        const file = event.target.files[0];
+    document.getElementById('jsonFileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
         if (!file) return;
+        
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = (event) => {
             try {
-                const jsonContent = JSON.parse(e.target.result);
-                processImportedData(jsonContent);
-                closeSettings();
-                showToast('JSON导入成功');
-            } catch (err) { alert('JSON格式错误'); }
+                const data = JSON.parse(event.target.result);
+                if (Array.isArray(data)) {
+                    data.forEach(item => {
+                        if (item['分类名称'] && item['视频源API地址']) {
+                            builtInVideoSources.push(item);
+                        }
+                    });
+                    const select = document.getElementById('videoSourceSelect');
+                    const option = document.createElement('option');
+                    option.value = data[0]['视频源API地址'];
+                    option.textContent = data[0]['分类名称'];
+                    select.appendChild(option);
+                    showToast('导入成功');
+                }
+            } catch (error) {
+                showToast('导入失败：' + error.message);
+            }
         };
         reader.readAsText(file);
-        event.target.value = '';
-    }
+    });
 
-    function processImportedData(data) {
-        let list = Array.isArray(data) ? data : (data.list || data.data || []);
-        if (list.length === 0) return alert("无有效数据");
-        isStaticSource = true;
-        currentApiUrl = ""; 
-        const feed = document.getElementById('videoFeed');
-        feed.innerHTML = '';
-        list.forEach(item => {
-             let url = item.url || item.video || item.src;
-             if(url) appendSingleVideo(url, item.author || '本地导入', item.title || '导入视频');
-        });
-    }
+    // 应用启动
+    window.addEventListener('load', initializeApp);
+    
+    // 防止意外卸载
+    window.addEventListener('beforeunload', (e) => {
+        if (hasUserInteracted) {
+            e.preventDefault();
+        }
+    });
 
-    function openSettings() { document.getElementById('settingsModal').classList.add('show'); }
-    function closeSettings() { document.getElementById('settingsModal').classList.remove('show'); }
-    function showToast(msg) {
-        const toast = document.getElementById('toast');
-        toast.innerText = msg;
-        toast.style.display = 'block';
-        setTimeout(() => toast.style.display = 'none', 2000);
-    }
+    // 用户交互标记
+    document.addEventListener('click', () => {
+        hasUserInteracted = true;
+    });
 </script>
 </body>
 </html>
